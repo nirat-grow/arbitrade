@@ -653,9 +653,18 @@ const App = () => {
 
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
-        const urlUserId = urlParams.get('userId');
+        let urlUserId = urlParams.get('userId');
+        
+        // Also support path-based URLs like /user_750
+        if (!urlUserId && window.location.pathname !== '/') {
+            const pathParts = window.location.pathname.split('/').filter(Boolean);
+            if (pathParts.length === 1 && pathParts[0].startsWith('user_')) {
+                urlUserId = pathParts[0];
+            }
+        }
+
         if (urlUserId) {
-            // If the URL has ?userId=..., automatically load their specific dashboard and lock the view
+            // If the URL has ?userId=... or /user_... automatically load their specific dashboard and lock the view
             setIsReadOnlyProfile(true);
             setCurrentView('personal');
             fetchProfile(urlUserId);
@@ -765,12 +774,16 @@ const App = () => {
                         return [...newTrades, ...prev].slice(0, 50);
                     });
                     
-                    // Optimistically update header profit if it's a new personal trade
-                    if (data.length > 0 && data[0].profitAmount) {
-                        setUserProfile(prev => prev ? {
-                            ...prev, 
-                            currentProfit: prev.currentProfit + data.reduce((sum, d) => sum + (d.profitAmount || 0), 0)
-                        } : prev);
+                    // Optimistically update header profit ONLY for new live trades (ignore initial historical payload)
+                    const liveTrades = newTrades.filter(d => !d.isHistory);
+                    if (liveTrades.length > 0) {
+                        // Defer state update slightly to avoid React warnings during render cycle
+                        setTimeout(() => {
+                            setUserProfile(prev => prev ? {
+                                ...prev, 
+                                currentProfit: prev.currentProfit + liveTrades.reduce((sum, d) => sum + (d.profitAmount || 0), 0)
+                            } : prev);
+                        }, 0);
                     }
                 } else {
                     setGlobalSignals(data);

@@ -463,7 +463,8 @@ wss.on('connection', (ws, req) => {
                         routePath: details.routePath,
                         calculation: details.calculation,
                         hops: details.hops,
-                        profitAmount: parseFloat(tradeData.profit_amount)
+                        profitAmount: parseFloat(tradeData.profit_amount),
+                        isHistory: true // Flag to tell frontend not to double-count this profit
                     };
                 });
                 if (ws.readyState === 1 && formattedHistory.length > 0) {
