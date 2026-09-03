@@ -229,6 +229,35 @@ app.get('/api/docs', (req, res) => {
         res.status(500).send('Documentation not available');
     }
 });
+// --- ADMIN SAVE DATA ENDPOINT ---
+app.post('/api/admin/save-data', async (req, res) => {
+    try {
+        const { date, amount, percentage, calculatedResult } = req.body;
+        
+        if (!date || amount === undefined || percentage === undefined || calculatedResult === undefined) {
+            return res.status(400).json({ success: false, message: 'Missing required fields' });
+        }
+
+        const queryText = `
+            INSERT INTO admin_submissions (date_time, amount, percentage, calculated_result)
+            VALUES ($1, $2, $3, $4)
+            RETURNING id;
+        `;
+        const values = [date, amount, percentage, calculatedResult];
+        
+        const result = await dbClient.query(queryText, values);
+        
+        res.status(201).json({ 
+            success: true, 
+            message: 'Data saved successfully', 
+            id: result.rows[0].id 
+        });
+    } catch (err) {
+        console.error('Error saving admin data:', err);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+});
+
 // -----------------------------
 
 const server = http.createServer(app);
@@ -246,7 +275,22 @@ const dbClient = new Client({
 });
 
 dbClient.connect()
-  .then(() => console.log('✅ Connected to PostgreSQL database "bot" successfully!'))
+  .then(async () => {
+      console.log('✅ Connected to PostgreSQL database "bot" successfully!');
+      
+      // Ensure admin table exists
+      await dbClient.query(`
+          CREATE TABLE IF NOT EXISTS admin_submissions (
+              id SERIAL PRIMARY KEY,
+              date_time DATE NOT NULL,
+              amount NUMERIC NOT NULL,
+              percentage NUMERIC NOT NULL,
+              calculated_result NUMERIC NOT NULL,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+      `);
+      console.log('✅ admin_submissions table ensured.');
+  })
   .catch(err => console.error('❌ PostgreSQL connection error:', err.stack));
 
 
