@@ -50,12 +50,11 @@ const networkDexMapping = {
     'Base': [
         { dex: 'Uniswap V3', feeLabel: 'V3 • FEE 500', router: '0x2626664c2603336E57B271c5C0b26F421741e481', quoter: '0x3d4e44Eb1374240CE5F1B871ab261CD16335B76a' },
         { dex: 'Uniswap V3', feeLabel: 'V3 • FEE 3000', router: '0x2626664c2603336E57B271c5C0b26F421741e481', quoter: '0x3d4e44Eb1374240CE5F1B871ab261CD16335B76a' },
-        { dex: 'SushiSwap', feeLabel: 'V2 • FEE 3000', router: '0x6BDED42c6DA8FBf0d2bA55B2fa120C5e0c8D7891', quoter: '0x71524B4f93c58fcbF659783fCeE636fSb368aAf2' },
-        { dex: 'Curve', feeLabel: 'V1 • FEE 400', router: '0x4f37A9d177470499A2dD084621020b023fcffc1F', quoter: '0x11C907CEc8Dc0B38dC3e5a1dC52d5D8e7eF3e84a' },
+        { dex: 'SushiSwap', feeLabel: 'V3 • FEE 3000', router: '0xFB7eF66a7e61224DD6FcD0D7d9C3be5C8B049b9f', quoter: '0x64e8802FE490fa7cc61d3c28aB3AA4EF6bA1af3f' },
     ],
     'Avalanche': [
-        { dex: 'Uniswap V3', feeLabel: 'V3 • FEE 500', router: '0xbb00FF08d01D300023C629E8fFfCb65A5a578cEe', quoter: '0xbe0F5544EC67e9B3b2D979aaA43f18Fd87E6257F' },
-        { dex: 'SushiSwap', feeLabel: 'V2 • FEE 3000', router: '0x1b02da8c750e38686d06d482436d65457b479975', quoter: '0xc35DADB65012eC5796536bD9864eD8773aBc74C4' },
+        { dex: 'Uniswap V3', feeLabel: 'V3 • FEE 500', router: '0xbb00FF08d01D300023C629E8fFfFcb65A5a578cE', quoter: '0xbe0F5544EC67e9B3b2D979aaA43f18Fd87E6257F' },
+        { dex: 'SushiSwap', feeLabel: 'V2 • FEE 3000', router: '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506', quoter: '0xc35DADB65012eC5796536bD9864eD8773aBc74C4' },
         { dex: 'Curve', feeLabel: 'V1 • FEE 400', router: '0x0DCDED3545D565bA3B19E683431381007245d983', quoter: '0x5552b631e2aD801fAa129Aacf4B701071cC9d1f7' },
         { dex: 'PancakeSwap', feeLabel: 'V3 • FEE 500', router: '0x1b81D678ffb9C0263b24A97847620C99d213eB14', quoter: '0xB048Bbc1Ee6b733FFfCFb9e9CeF7375518e25997' },
     ],
