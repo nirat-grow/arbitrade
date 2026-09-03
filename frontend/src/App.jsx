@@ -376,7 +376,17 @@ const AnimatedCalcItem = ({ label, valueStr, valueColorClass, isExpanded, isNetR
     );
 };
 
-const CopyableAddress = ({ address }) => {
+const EXPLORER_URLS = {
+    'Ethereum': 'https://etherscan.io/address/',
+    'Polygon': 'https://polygonscan.com/address/',
+    'BNB': 'https://bscscan.com/address/',
+    'Arbitrum': 'https://arbiscan.io/address/',
+    'Optimism': 'https://optimistic.etherscan.io/address/',
+    'Base': 'https://basescan.org/address/',
+    'Avalanche': 'https://snowtrace.io/address/',
+};
+
+const CopyableAddress = ({ address, network }) => {
     const [copied, setCopied] = useState(false);
 
     // Abbreviate for display only (e.g. 0xE592...1564)
@@ -384,7 +394,12 @@ const CopyableAddress = ({ address }) => {
         ? address.slice(0, 6) + '...' + address.slice(-4)
         : address;
 
+    const explorerUrl = network && EXPLORER_URLS[network] 
+        ? EXPLORER_URLS[network] + address 
+        : null;
+
     const handleCopy = (e) => {
+        e.preventDefault();
         e.stopPropagation();
         navigator.clipboard.writeText(address); // Copy FULL address
         setCopied(true);
@@ -392,8 +407,15 @@ const CopyableAddress = ({ address }) => {
     };
 
     return (
-        <span className={`a-val copyable ${copied ? 'is-copied' : ''}`} onClick={handleCopy} title={address}>
-            {displayAddress} <span className="copy-icon">{copied ? '✓ Copied' : '⎘'}</span>
+        <span className={`a-val copyable ${copied ? 'is-copied' : ''}`} title={address}>
+            {explorerUrl ? (
+                <a href={explorerUrl} target="_blank" rel="noopener noreferrer" className="explorer-link" onClick={(e) => e.stopPropagation()}>
+                    {displayAddress}
+                </a>
+            ) : (
+                displayAddress
+            )}
+            <span className="copy-icon" onClick={handleCopy}>{copied ? '✓ Copied' : '⎘'}</span>
         </span>
     );
 };
@@ -565,11 +587,11 @@ const SignalRow = ({ data, isExpanded, onToggle }) => {
                                         <div className="hop-swap">{hop.swapText}</div>
                                         <div className="hop-address">
                                             <span className="a-label">Router</span>
-                                            <CopyableAddress address={hop.router} />
+                                            <CopyableAddress address={hop.router} network={data.network} />
                                         </div>
                                         <div className="hop-address">
                                             <span className="a-label">Quoter</span>
-                                            <CopyableAddress address={hop.quoter} />
+                                            <CopyableAddress address={hop.quoter} network={data.network} />
                                         </div>
                                     </div>
                                 </div>
