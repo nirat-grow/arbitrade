@@ -129,8 +129,8 @@ function generateRandomRecord() {
             dex: dexInfo.dex,
             feeLabel: dexInfo.feeLabel,
             swapText: `${fromToken}...${fromToken} → ${toToken}...${toToken}`,
-            router: abbreviateAddress(dexInfo.router),
-            quoter: abbreviateAddress(dexInfo.quoter)
+            router: dexInfo.router,
+            quoter: dexInfo.quoter
         });
     }
     

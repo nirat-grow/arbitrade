@@ -379,16 +379,21 @@ const AnimatedCalcItem = ({ label, valueStr, valueColorClass, isExpanded, isNetR
 const CopyableAddress = ({ address }) => {
     const [copied, setCopied] = useState(false);
 
+    // Abbreviate for display only (e.g. 0xE592...1564)
+    const displayAddress = address && address.length > 12 
+        ? address.slice(0, 6) + '...' + address.slice(-4)
+        : address;
+
     const handleCopy = (e) => {
         e.stopPropagation();
-        navigator.clipboard.writeText(address);
+        navigator.clipboard.writeText(address); // Copy FULL address
         setCopied(true);
         setTimeout(() => setCopied(false), 1200);
     };
 
     return (
-        <span className={`a-val copyable ${copied ? 'is-copied' : ''}`} onClick={handleCopy} title="Copy to clipboard">
-            {address} <span className="copy-icon">{copied ? '✓ Copied' : '⎘'}</span>
+        <span className={`a-val copyable ${copied ? 'is-copied' : ''}`} onClick={handleCopy} title={address}>
+            {displayAddress} <span className="copy-icon">{copied ? '✓ Copied' : '⎘'}</span>
         </span>
     );
 };
