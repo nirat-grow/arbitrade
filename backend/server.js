@@ -321,36 +321,30 @@ setInterval(async () => {
             const targetProfit = parseFloat(session.target_profit);
             const currentProfit = parseFloat(session.current_profit || 0);
             
-            // 24-Hour Pace Calculation
-            const startTime = new Date(session.start_time).getTime();
-            const now = Date.now();
-            const elapsedMs = Math.max(0, now - startTime);
-            
-            const totalTicks = 5760; // 24 hours / 15 seconds
-            const elapsedTicks = Math.floor(elapsedMs / 15000);
-            const remainingTicks = Math.max(1, totalTicks - elapsedTicks);
-            
+            // 1 to 2 Hour Pace Calculation (Only Profit, No Loss)
             const remainingProfit = targetProfit - currentProfit;
             
             let newProfit = 0;
             let sessionComplete = false;
 
-            if (remainingTicks <= 1 || remainingProfit <= 0) {
-                // The 24 hours are up! Force the exact remaining pennies to perfectly hit the 3% target
-                newProfit = Math.max(0, remainingProfit);
+            if (remainingProfit <= 0) {
+                // Target already hit! 
+                newProfit = 0;
                 sessionComplete = true;
             } else {
-                // Ideal profit needed this exact second to stay precisely on pace
-                const idealProfitPerTick = remainingProfit / remainingTicks;
+                // For 1-2 hours completion (60-120 mins) at 15 seconds per tick:
+                // Ticks for 2 hours = 120 mins * 4 ticks/min = 480 ticks
+                // Ticks for 1 hour = 60 mins * 4 ticks/min = 240 ticks
+                const minProfitPerTick = targetProfit / 480;
+                const maxProfitPerTick = targetProfit / 240;
                 
-                // Realistic Chaos: Random multiplier between -1.0 (loss) and +3.0 (big win)
-                // Average is 1.0, so the bot naturally drifts back to the perfect pace over 24 hours!
-                const randomVariance = (Math.random() * 4) - 1.0; 
-                newProfit = idealProfitPerTick * randomVariance;
+                // Generate a purely POSITIVE random profit
+                newProfit = minProfitPerTick + (Math.random() * (maxProfitPerTick - minProfitPerTick));
                 
-                // Prevent premature finishes: if a random spike hits the cap too early, squash it down
+                // If this jump puts us over the target, give exactly what's left and finish!
                 if (currentProfit + newProfit >= targetProfit) {
-                    newProfit = idealProfitPerTick * (Math.random() * 0.5 + 0.1); 
+                    newProfit = remainingProfit;
+                    sessionComplete = true;
                 }
             }
             

@@ -150,12 +150,10 @@ const Navbar = ({ onOpenLogin, userProfile, currentView, onViewToggle, isReadOnl
             <div className="nav-right">
                 {userProfile ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                        {!isReadOnlyProfile && (
-                            <div className="view-toggle-group">
-                                <button className={`toggle-btn ${currentView === 'global' ? 'active' : ''}`} onClick={() => onViewToggle('global')}>Global Feed</button>
-                                <button className={`toggle-btn ${currentView === 'personal' ? 'active' : ''}`} onClick={() => onViewToggle('personal')}>My Trades</button>
-                            </div>
-                        )}
+                        <div className="view-toggle-group">
+                            <button className={`toggle-btn ${currentView === 'global' ? 'active' : ''}`} onClick={() => onViewToggle('global')}>Global Feed</button>
+                            <button className={`toggle-btn ${currentView === 'personal' ? 'active' : ''}`} onClick={() => onViewToggle('personal')}>My Trades</button>
+                        </div>
                         <div className="profile-badge">
                             <div className="user-pill">
                                 <span className="profile-id">👤 {userProfile.userId}</span>
@@ -601,16 +599,7 @@ const App = () => {
         setTimeout(() => setIsRescanning(false), 500);
     };
 
-    useEffect(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlUserId = urlParams.get('userId');
-        if (urlUserId) {
-            // If the URL has ?userId=..., automatically load their specific dashboard and lock the view
-            setIsReadOnlyProfile(true);
-            setCurrentView('personal');
-            fetchProfile(urlUserId);
-        }
-    }, []);
+
 
     const fetchProfile = async (id) => {
         try {
@@ -673,6 +662,23 @@ const App = () => {
             showToast("Failed to connect to the server.", 'error');
         }
     };
+
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        let urlUserId = urlParams.get('userId');
+        
+        if (!urlUserId) {
+            const pathParts = window.location.pathname.split('/').filter(Boolean);
+            if (pathParts.length > 0 && pathParts[0].startsWith('user')) {
+                urlUserId = pathParts[0];
+            }
+        }
+
+        if (urlUserId) {
+            setCurrentView('personal');
+            handleLogin(urlUserId);
+        }
+    }, []);
 
     useEffect(() => {
         let ws;
