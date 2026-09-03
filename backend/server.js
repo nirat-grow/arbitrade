@@ -450,27 +450,8 @@ wss.on('connection', (ws, req) => {
     if (!userId && ws.readyState === 1 && activeSignals.length > 0) {
         ws.send(JSON.stringify(getJitteredSignals()));
     } else if (userId && ws.readyState === 1) {
-        // Instantly send their specific historical trades!
-        dbClient.query('SELECT * FROM trade_history WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50', [userId])
-            .then(historyCheck => {
-                const formattedHistory = historyCheck.rows.map(tradeData => {
-                    const details = typeof tradeData.trade_details === 'string' ? JSON.parse(tradeData.trade_details) : tradeData.trade_details;
-                    return {
-                        id: tradeData.id,
-                        type: details.type,
-                        network: details.network,
-                        timeLabel: 'Active',
-                        routePath: details.routePath,
-                        calculation: details.calculation,
-                        hops: details.hops,
-                        profitAmount: parseFloat(tradeData.profit_amount)
-                    };
-                });
-                if (ws.readyState === 1 && formattedHistory.length > 0) {
-                    ws.send(JSON.stringify(formattedHistory));
-                }
-            })
-            .catch(err => console.error("Error fetching WS history:", err));
+        // Connection logged. History is already handled by the REST API fetchProfile()
+        // We only use this WS connection for broadcasting NEW live trades.
     }
 
     // Broadcast slightly jittered data every 2 seconds ONLY to global feed
