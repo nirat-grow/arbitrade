@@ -472,9 +472,9 @@ const SignalRow = ({ data, isExpanded, onToggle }) => {
                 <div className="t-col col-net">
                     {data.profitAmount !== undefined ? (
                         <FlashValue 
-                            className="c-val success-text" 
+                            className={`c-val ${data.profitAmount < 0 ? 'danger-text' : 'success-text'}`} 
                             style={{fontSize: '1.1rem'}}
-                            value={`+$${data.profitAmount.toFixed(6)}`} 
+                            value={data.profitAmount < 0 ? `-$${Math.abs(data.profitAmount).toFixed(6)}` : `+$${data.profitAmount.toFixed(6)}`} 
                         />
                     ) : (
                         <FlashValue 
