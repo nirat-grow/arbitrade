@@ -231,6 +231,28 @@ const Header = ({ syncTime, currentView, userProfile }) => {
     );
 };
 
+const SuccessModal = ({ isOpen, onClose, profit }) => {
+    if (!isOpen) return null;
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-content success-modal" onClick={e => e.stopPropagation()}>
+                <div className="success-icon-wrapper">
+                    <div className="success-icon-ring"></div>
+                    <div className="success-icon-check">✓</div>
+                </div>
+                <h2 className="success-title">TARGET SECURED</h2>
+                <div className="success-profit-badge">+${profit.toFixed(2)}</div>
+                <p className="success-message">
+                    Daily 3% profit target achieved. Your Auto-Trade session has automatically stopped to secure your profits.
+                </p>
+                <button className="start-btn success-btn" onClick={onClose}>
+                    ACKNOWLEDGE
+                </button>
+            </div>
+        </div>
+    );
+};
+
 const SignalEqualizer = ({ segmentsCount = 11 }) => {
     // Generate an array of segments with varying sizes for the scanner
     const segments = [...Array(segmentsCount)].map((_, i) => {
@@ -618,6 +640,7 @@ const App = () => {
     const [isReadOnlyProfile, setIsReadOnlyProfile] = useState(false);
     const [toast, setToast] = useState(null);
     const [expandedTradeId, setExpandedTradeId] = useState(null);
+    const [successModalData, setSuccessModalData] = useState(null);
 
     const showToast = (message, type = 'success') => {
         setToast({ message, type });
@@ -731,8 +754,8 @@ const App = () => {
                         currentProfit: completeData.total_profit
                     } : prev);
                     
-                    // Trigger celebratory alert
-                    alert(`✅ Success! 3% Daily Profit Target Reached ($${completeData.total_profit.toFixed(2)} secured)!\nYour Auto-Trade session has automatically stopped to secure your profits.`);
+                    // Trigger beautiful custom modal
+                    setSuccessModalData({ profit: completeData.total_profit });
                     return;
                 }
                 
@@ -784,6 +807,7 @@ const App = () => {
         <div>
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
             <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} onLogin={handleLogin} />
+            <SuccessModal isOpen={!!successModalData} onClose={() => setSuccessModalData(null)} profit={successModalData?.profit || 0} />
             <Navbar 
                 onOpenLogin={() => setIsLoginOpen(true)} 
                 userProfile={userProfile} 
