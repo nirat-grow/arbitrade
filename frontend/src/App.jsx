@@ -652,6 +652,7 @@ const App = () => {
             
             if (data.success || response.status === 429) {
                 setIsLoginOpen(false);
+                setCurrentView('personal'); // Automatically switch to their personal dashboard
                 fetchProfile(userId);
                 if (data.success) showToast(data.message, 'success');
             } else {
