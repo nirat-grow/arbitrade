@@ -656,10 +656,12 @@ const App = () => {
                 if (data.success) showToast(data.message, 'success');
             } else {
                 showToast(data.message, 'error');
+                setCurrentView('global');
             }
         } catch (err) {
             console.error(err);
             showToast("Failed to connect to the server.", 'error');
+            setCurrentView('global');
         }
     };
 

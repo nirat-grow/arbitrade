@@ -430,9 +430,13 @@ function getJitteredSignals() {
     return activeSignals.map(sig => {
         const cloned = JSON.parse(JSON.stringify(sig));
         let net = parseFloat(cloned.calculation.net);
-        cloned.calculation.net = (net + (Math.random() * 0.1 - 0.05)).toFixed(6);
+        // Only positive jitter to ensure no fake losses
+        let newNet = net + (Math.random() * 0.02);
+        cloned.calculation.net = newNet.toFixed(6);
+        cloned.profitAmount = newNet; // Keep top row and expanded view synced!
+        
         let roi = parseFloat(cloned.calculation.roi);
-        cloned.calculation.roi = (roi + (Math.random() * 0.02 - 0.01)).toFixed(4) + '%';
+        cloned.calculation.roi = (roi + (Math.random() * 0.005)).toFixed(4) + '%';
         return cloned;
     });
 }
