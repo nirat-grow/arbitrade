@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import AdminPanel from './components/AdminPanel';
 
 const LoginModal = ({ isOpen, onClose, onLogin }) => {
     const [userId, setUserId] = useState('');
@@ -159,12 +160,36 @@ const Navbar = ({ onOpenLogin, userProfile, currentView, onViewToggle, isReadOnl
                         <div className="profile-badge">
                             <div className="user-pill">
                                 <span className="profile-id">👤 {userProfile.userId}</span>
-                                <span className="profile-bal">Balance: <strong style={{color: '#FFF'}}>${userProfile.balance.toFixed(2)}</strong></span>
-                                {userProfile.sessionActive ? (
-                                    <span className="profile-profit premium-badge">Profit: ${userProfile.currentProfit.toFixed(2)}</span>
-                                ) : (
-                                    <button className="start-trade-btn" style={{ marginLeft: '4px', padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onStartTrade(userProfile.userId)}>▶ Start 24h Trade</button>
-                                )}
+                                <span className="profile-bal">Balance: <strong style={{color: '#FFF'}}>${userProfile.balance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></span>
+                                {(() => {
+                                    const pct = userProfile.balance > 0 
+                                        ? ((userProfile.currentProfit / userProfile.balance) * 100).toFixed(2)
+                                        : (userProfile.currentProfitPercentage || 0).toFixed(2);
+
+                                    if (userProfile.sessionActive) {
+                                        return (
+                                            <span className="profile-profit premium-badge" title={`+$${userProfile.currentProfit.toFixed(2)}`}>
+                                                Profit: +{pct}%
+                                            </span>
+                                        );
+                                    } else if (userProfile.currentProfit > 0) {
+                                        return (
+                                            <span 
+                                                className="profile-profit premium-badge" 
+                                                style={{ background: 'rgba(74, 222, 128, 0.15)', borderColor: 'rgba(74, 222, 128, 0.4)', color: '#4ADE80' }} 
+                                                title={`+$${userProfile.currentProfit.toFixed(2)}`}
+                                            >
+                                                Target Achieved: +{pct}%
+                                            </span>
+                                        );
+                                    } else {
+                                        return (
+                                            <button className="start-trade-btn" style={{ marginLeft: '4px', padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onStartTrade(userProfile.userId)}>
+                                                ▶ Start 24h Trade
+                                            </button>
+                                        );
+                                    }
+                                })()}
                             </div>
                         </div>
                     </div>
@@ -231,8 +256,9 @@ const Header = ({ syncTime, currentView, userProfile }) => {
     );
 };
 
-const SuccessModal = ({ isOpen, onClose, profit }) => {
+const SuccessModal = ({ isOpen, onClose, profit, percentage }) => {
     if (!isOpen) return null;
+    const pctLabel = percentage ? `${percentage}%` : 'Target';
     return (
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content success-modal" onClick={e => e.stopPropagation()}>
@@ -241,9 +267,9 @@ const SuccessModal = ({ isOpen, onClose, profit }) => {
                     <div className="success-icon-check">✓</div>
                 </div>
                 <h2 className="success-title">TARGET SECURED</h2>
-                <div className="success-profit-badge">+${profit.toFixed(2)}</div>
+                <div className="success-profit-badge">+{pctLabel} (+${profit.toFixed(2)})</div>
                 <p className="success-message">
-                    Daily 3% profit target achieved. Your Auto-Trade session has automatically stopped to secure your profits.
+                    Daily {pctLabel} profit target achieved. Your Auto-Trade session has automatically stopped to secure your profits.
                 </p>
                 <button className="start-btn success-btn" onClick={onClose}>
                     ACKNOWLEDGE
@@ -627,221 +653,6 @@ const SignalRow = ({ data, isExpanded, onToggle }) => {
     );
 };
 
-const AdminPanel = () => {
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const [toast, setToast] = useState(null);
-    const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' or 'amount'
-
-    const [date, setDate] = useState('');
-    const [amount, setAmount] = useState('');
-    const [percentage, setPercentage] = useState('');
-    const [loading, setLoading] = useState(false);
-
-    const calculatedResult = (parseFloat(amount) || 0) * ((parseFloat(percentage) || 0) / 100);
-
-    const handleLogin = (e) => {
-        e.preventDefault();
-        if (username === 'admin' && password === 'admin123') {
-            setIsLoggedIn(true);
-            setToast({ message: 'Logged in as Admin', type: 'success' });
-        } else {
-            setToast({ message: 'Invalid credentials', type: 'error' });
-        }
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!date || !amount || !percentage) {
-            setToast({ message: 'Please fill all fields', type: 'error' });
-            return;
-        }
-
-        setLoading(true);
-        try {
-            const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-            const apiUrl = `${protocol}//${window.location.host}/api/admin/save-data`;
-            
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    date, 
-                    amount: parseFloat(amount), 
-                    percentage: parseFloat(percentage), 
-                    calculatedResult 
-                })
-            });
-            const data = await response.json();
-            
-            if (data.success) {
-                setToast({ message: 'Data saved successfully!', type: 'success' });
-                setDate('');
-                setAmount('');
-                setPercentage('');
-            } else {
-                setToast({ message: data.message || 'Failed to save', type: 'error' });
-            }
-        } catch (err) {
-            console.error(err);
-            setToast({ message: 'Server error', type: 'error' });
-        }
-        setLoading(false);
-    };
-
-    if (!isLoggedIn) {
-        return (
-            <div className="admin-layout" style={{ justifyContent: 'center', alignItems: 'center' }}>
-                {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-                <div className="admin-card" style={{ width: '100%', maxWidth: '400px' }}>
-                    <div style={{ textAlign: 'center', marginBottom: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <KarometaLogo />
-                        <h2 className="admin-page-title" style={{ marginTop: '16px', fontSize: '1.5rem' }}>Admin Portal</h2>
-                    </div>
-                    <form onSubmit={handleLogin} className="admin-form-group">
-                        <div>
-                            <label className="admin-label">Username</label>
-                            <input 
-                                type="text" 
-                                value={username} 
-                                onChange={e => setUsername(e.target.value)}
-                                className="admin-input"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="admin-label">Password</label>
-                            <input 
-                                type="password" 
-                                value={password} 
-                                onChange={e => setPassword(e.target.value)}
-                                className="admin-input"
-                                required
-                            />
-                        </div>
-                        <button type="submit" className="admin-btn-primary">Authenticate</button>
-                    </form>
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="admin-layout">
-            {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-            
-            {/* Sidebar */}
-            <div className="admin-sidebar">
-                <div className="admin-sidebar-header">
-                    <KarometaLogo />
-                    <span className="admin-sidebar-title">ADMIN</span>
-                </div>
-                
-                <div className="admin-nav-list">
-                    <button 
-                        onClick={() => setActiveTab('dashboard')}
-                        className={`admin-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
-                    >
-                        <svg className="admin-nav-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
-                        </svg>
-                        Dashboard
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('amount')}
-                        className={`admin-nav-item ${activeTab === 'amount' ? 'active' : ''}`}
-                    >
-                        <svg className="admin-nav-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
-                        </svg>
-                        Amount
-                    </button>
-                </div>
-            </div>
-
-            {/* Right Content */}
-            <div className="admin-content">
-                <div className="admin-content-inner">
-                    {activeTab === 'dashboard' && (
-                        <div className="admin-card admin-empty-state">
-                            <svg className="admin-empty-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 6h2v4h-2z"/>
-                            </svg>
-                            <h2 className="admin-empty-title">Coming Soon</h2>
-                            <p className="admin-empty-subtitle">The analytics dashboard is currently under construction. Check back later for detailed insights.</p>
-                        </div>
-                    )}
-
-                    {activeTab === 'amount' && (
-                        <div>
-                            <div className="admin-page-header">
-                                <h2 className="admin-page-title">Amount Configuration</h2>
-                                <p className="admin-page-subtitle">Enter and save new package data to the system.</p>
-                            </div>
-
-                            <div className="admin-card">
-                                <form onSubmit={handleSubmit} className="admin-form-group">
-                                    
-                                    <div className="admin-form-row">
-                                        <div className="admin-form-col">
-                                            <label className="admin-label">Date</label>
-                                            <input 
-                                                type="date" 
-                                                value={date} 
-                                                onChange={e => setDate(e.target.value)}
-                                                className="admin-input"
-                                                required
-                                            />
-                                        </div>
-                                        <div className="admin-form-col">
-                                            <label className="admin-label">Amount</label>
-                                            <input 
-                                                type="number" 
-                                                step="0.01"
-                                                value={amount} 
-                                                onChange={e => setAmount(e.target.value)}
-                                                className="admin-input"
-                                                required
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="admin-label">Percentage (%)</label>
-                                        <input 
-                                            type="number" 
-                                            step="0.01"
-                                            value={percentage} 
-                                            onChange={e => setPercentage(e.target.value)}
-                                            className="admin-input"
-                                            required
-                                        />
-                                    </div>
-                                    
-                                    <div>
-                                        <label className="admin-label highlight">Calculated Result</label>
-                                        <input 
-                                            type="text" 
-                                            value={calculatedResult.toFixed(2)} 
-                                            readOnly
-                                            className="admin-input"
-                                        />
-                                    </div>
-
-                                    <button type="submit" className="admin-btn-primary" disabled={loading}>
-                                        {loading ? 'Saving...' : 'Submit Data'}
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-};
-
 const MainApp = () => {
     const [globalSignals, setGlobalSignals] = useState([]);
     const [personalSignals, setPersonalSignals] = useState([]);
@@ -977,11 +788,15 @@ const MainApp = () => {
                     setUserProfile(prev => prev ? {
                         ...prev,
                         sessionActive: false,
-                        currentProfit: completeData.total_profit
+                        currentProfit: completeData.total_profit,
+                        currentProfitPercentage: completeData.profit_percentage || prev.targetPercentage
                     } : prev);
                     
-                    // Trigger beautiful custom modal
-                    setSuccessModalData({ profit: completeData.total_profit });
+                    // Trigger beautiful custom modal with percentage
+                    setSuccessModalData({ 
+                        profit: completeData.total_profit,
+                        percentage: completeData.profit_percentage || userProfile?.targetPercentage || 8
+                    });
                     return;
                 }
                 
@@ -1037,7 +852,12 @@ const MainApp = () => {
         <div>
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
             <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} onLogin={handleLogin} />
-            <SuccessModal isOpen={!!successModalData} onClose={() => setSuccessModalData(null)} profit={successModalData?.profit || 0} />
+            <SuccessModal 
+                isOpen={!!successModalData} 
+                onClose={() => setSuccessModalData(null)} 
+                profit={successModalData?.profit || 0} 
+                percentage={successModalData?.percentage || userProfile?.targetPercentage || 8}
+            />
             <Navbar 
                 onOpenLogin={() => setIsLoginOpen(true)} 
                 userProfile={userProfile} 

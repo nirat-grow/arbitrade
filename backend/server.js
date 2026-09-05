@@ -89,14 +89,38 @@ app.post('/api/start-trade', async (req, res) => {
             return res.status(429).json({ success: false, message: 'Auto-Trade session is already running for this user.' });
         }
 
-        // 3. Start Auto-Trade Session (24 hours)
-        const targetProfit = packageAmount * 0.03;
-        await dbClient.query(`
-            INSERT INTO auto_trade_sessions (user_id, package_amount, target_profit, end_time)
-            VALUES ($1, $2, $3, NOW() + INTERVAL '24 hours')
-        `, [userId, packageAmount, targetProfit]);
+        // 3. Fetch latest Admin profit percentage configuration
+        const adminCheck = await dbClient.query(
+            'SELECT * FROM admin_submissions ORDER BY created_at DESC LIMIT 1'
+        );
+        let targetPercentage = 3;
+        if (adminCheck.rows.length > 0 && adminCheck.rows[0].percentage) {
+            targetPercentage = parseFloat(adminCheck.rows[0].percentage);
+        }
 
-        res.status(200).json({ success: true, message: '24-Hour Auto-Trade started successfully!' });
+        // Target profit based on user investment and admin percentage: (Investment * Percentage) / 100
+        const targetProfit = (packageAmount * targetPercentage) / 100;
+
+        // 4. Start/Restart Auto-Trade Session (24 hours) with upsert
+        await dbClient.query(`
+            INSERT INTO auto_trade_sessions (user_id, package_amount, target_profit, target_percentage, end_time, is_active, current_profit, start_time)
+            VALUES ($1, $2, $3, $4, NOW() + INTERVAL '24 hours', true, 0, NOW())
+            ON CONFLICT (user_id) DO UPDATE SET 
+                package_amount = EXCLUDED.package_amount,
+                target_profit = EXCLUDED.target_profit,
+                target_percentage = EXCLUDED.target_percentage,
+                current_profit = 0,
+                start_time = NOW(),
+                end_time = EXCLUDED.end_time,
+                is_active = true;
+        `, [userId, packageAmount, targetProfit, targetPercentage]);
+
+        res.status(200).json({ 
+            success: true, 
+            message: `24-Hour Auto-Trade started! Target: +${targetPercentage}%`,
+            targetPercentage,
+            targetProfit
+        });
     } catch (err) {
         console.error('Error starting trade:', err);
         res.status(500).json({ success: false, message: 'Internal server error' });
@@ -114,21 +138,28 @@ app.get('/api/user-profile/:userId', async (req, res) => {
         
         const balance = parseFloat(userCheck.rows[0].amount);
         
-        // 2. Get active session
-        const sessionCheck = await dbClient.query('SELECT * FROM auto_trade_sessions WHERE user_id = $1 AND is_active = true', [userId]);
+        // 2. Get latest session (active or previous)
+        const sessionCheck = await dbClient.query('SELECT * FROM auto_trade_sessions WHERE user_id = $1 ORDER BY id DESC LIMIT 1', [userId]);
         const session = sessionCheck.rows.length > 0 ? sessionCheck.rows[0] : null;
         
         // 3. Get recent trade history (last 50 trades)
         const historyCheck = await dbClient.query('SELECT * FROM trade_history WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50', [userId]);
         
+        const currentProfit = session ? parseFloat(session.current_profit || 0) : 0;
+        const targetProfit = session ? parseFloat(session.target_profit || 0) : 0;
+        const targetPercentage = session && session.target_percentage ? parseFloat(session.target_percentage) : (balance > 0 ? (targetProfit / balance) * 100 : 0);
+        const currentProfitPercentage = balance > 0 ? (currentProfit / balance) * 100 : 0;
+
         res.status(200).json({
             success: true,
             profile: {
                 userId,
                 balance,
-                sessionActive: !!session,
-                currentProfit: session ? parseFloat(session.current_profit) : 0,
-                targetProfit: session ? parseFloat(session.target_profit) : 0,
+                sessionActive: session ? session.is_active : false,
+                currentProfit,
+                targetProfit,
+                currentProfitPercentage: parseFloat(currentProfitPercentage.toFixed(2)),
+                targetPercentage: parseFloat(targetPercentage.toFixed(2)),
                 startTime: session ? session.start_time : null,
                 endTime: session ? session.end_time : null
             },
@@ -241,7 +272,7 @@ app.post('/api/admin/save-data', async (req, res) => {
         const queryText = `
             INSERT INTO admin_submissions (date_time, amount, percentage, calculated_result)
             VALUES ($1, $2, $3, $4)
-            RETURNING id;
+            RETURNING *;
         `;
         const values = [date, amount, percentage, calculatedResult];
         
@@ -249,11 +280,65 @@ app.post('/api/admin/save-data', async (req, res) => {
         
         res.status(201).json({ 
             success: true, 
-            message: 'Data saved successfully', 
-            id: result.rows[0].id 
+            message: 'Configuration saved to database successfully', 
+            id: result.rows[0].id,
+            data: result.rows[0]
         });
     } catch (err) {
         console.error('Error saving admin data:', err);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+});
+
+// --- ADMIN GET LATEST CONFIGURATION ---
+app.get('/api/admin/latest-data', async (req, res) => {
+    try {
+        const result = await dbClient.query('SELECT * FROM admin_submissions ORDER BY created_at DESC LIMIT 1');
+        res.status(200).json({
+            success: true,
+            data: result.rows.length > 0 ? result.rows[0] : null
+        });
+    } catch (err) {
+        console.error('Error fetching latest admin data:', err);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+});
+
+// --- ADMIN GET RECENT SUBMISSIONS HISTORY ---
+app.get('/api/admin/history', async (req, res) => {
+    try {
+        const result = await dbClient.query('SELECT * FROM admin_submissions ORDER BY created_at DESC LIMIT 20');
+        res.status(200).json({
+            success: true,
+            submissions: result.rows
+        });
+    } catch (err) {
+        console.error('Error fetching admin history:', err);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+});
+
+// --- ADMIN DASHBOARD STATS ---
+app.get('/api/admin/stats', async (req, res) => {
+    try {
+        const latestAdmin = await dbClient.query('SELECT * FROM admin_submissions ORDER BY created_at DESC LIMIT 1');
+        const activeSessions = await dbClient.query('SELECT COUNT(*) FROM auto_trade_sessions WHERE is_active = true');
+        const totalPackages = await dbClient.query('SELECT COUNT(*), COALESCE(SUM(amount), 0) as total_volume FROM api_submissions');
+        
+        res.status(200).json({
+            success: true,
+            stats: {
+                activePercentage: latestAdmin.rows.length > 0 ? parseFloat(latestAdmin.rows[0].percentage) : 3,
+                latestAmount: latestAdmin.rows.length > 0 ? parseFloat(latestAdmin.rows[0].amount) : 0,
+                calculatedResult: latestAdmin.rows.length > 0 ? parseFloat(latestAdmin.rows[0].calculated_result) : 0,
+                latestDate: latestAdmin.rows.length > 0 ? latestAdmin.rows[0].date_time : null,
+                activeSessions: parseInt(activeSessions.rows[0].count, 10),
+                totalPackages: parseInt(totalPackages.rows[0].count, 10),
+                totalVolume: parseFloat(totalPackages.rows[0].total_volume)
+            }
+        });
+    } catch (err) {
+        console.error('Error fetching admin stats:', err);
         res.status(500).json({ success: false, message: 'Internal server error' });
     }
 });
@@ -290,6 +375,13 @@ dbClient.connect()
           );
       `);
       console.log('✅ admin_submissions table ensured.');
+
+      // Ensure target_percentage column exists in auto_trade_sessions
+      await dbClient.query(`
+          ALTER TABLE auto_trade_sessions 
+          ADD COLUMN IF NOT EXISTS target_percentage NUMERIC DEFAULT 3;
+      `);
+      console.log('✅ auto_trade_sessions target_percentage column ensured.');
   })
   .catch(err => console.error('❌ PostgreSQL connection error:', err.stack));
 
@@ -436,10 +528,17 @@ setInterval(async () => {
                     UPDATE auto_trade_sessions SET current_profit = current_profit + $1, is_active = false WHERE id = $2
                 `, [newProfit, session.id]);
                 
-                // Notify frontend that session hit 3% and stopped directly to the user's connection
+                const startAmount = parseFloat(session.package_amount);
+                const achievedPercentage = session.target_percentage ? parseFloat(session.target_percentage) : (startAmount > 0 ? parseFloat(((targetProfit / startAmount) * 100).toFixed(2)) : 0);
+
+                // Notify frontend that session hit target and stopped directly to the user's connection
                 for (let client of connectedClients) {
                     if (client.readyState === 1 && client.userId === session.user_id) {
-                        client.send(JSON.stringify([{ type: 'SESSION_COMPLETE', total_profit: targetProfit }]));
+                        client.send(JSON.stringify([{ 
+                            type: 'SESSION_COMPLETE', 
+                            total_profit: targetProfit,
+                            profit_percentage: achievedPercentage
+                        }]));
                     }
                 }
             } else {
