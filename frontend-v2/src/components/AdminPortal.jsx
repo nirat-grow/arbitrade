@@ -128,7 +128,7 @@ export const AdminPortal = ({ onBackToTerminal }) => {
               color: 'var(--cyan-core)', 
               marginTop: '12px' 
             }}>
-              NEXUS OPERATOR CONTROL
+              KAROMETA OPERATOR CONTROL
             </div>
             <h1 style={{ fontFamily: 'var(--font-tech)', fontSize: '1.5rem', fontWeight: '800', marginTop: '4px' }}>
               Admin Portal

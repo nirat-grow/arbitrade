@@ -34,18 +34,30 @@ const useCountdown = (endTime) => {
 export const PersonalDashboard = ({ userProfile, onStartTrade }) => {
   if (!userProfile) return null;
 
-  const countdown = useCountdown(userProfile.sessionActive ? userProfile.endTime : null);
-  const targetPct = userProfile.targetPercentage || 8;
+  const now = new Date();
+  const sessionEndTime = userProfile.endTime ? new Date(userProfile.endTime) : null;
+  const isCooldown = !userProfile.sessionActive && sessionEndTime && sessionEndTime > now;
+  const canLaunch = !userProfile.sessionActive && (!sessionEndTime || sessionEndTime <= now);
+
+  const targetTimerTime = userProfile.sessionActive 
+    ? userProfile.endTime 
+    : (isCooldown ? userProfile.endTime : null);
+
+  const countdown = useCountdown(targetTimerTime);
   const currentPct = userProfile.balance > 0
     ? ((userProfile.currentProfit / userProfile.balance) * 100)
     : (userProfile.currentProfitPercentage || 0);
 
-  const progress = Math.min(100, Math.max(0, (currentPct / targetPct) * 100));
-
   return (
     <div className="personal-ledger-header">
+      {/* 4-Corner Observatory Cyber Brackets */}
+      <span className="ledger-corner ledger-corner-tl" />
+      <span className="ledger-corner ledger-corner-tr" />
+      <span className="ledger-corner ledger-corner-bl" />
+      <span className="ledger-corner ledger-corner-br" />
+
       <div className="user-session-hud">
-        {/* Left: Account & Target Progress */}
+        {/* Left: Account & Live Performance Stream */}
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
             <span className="user-id-tag" style={{ fontSize: '0.9rem', padding: '4px 12px' }}>
@@ -55,13 +67,20 @@ export const PersonalDashboard = ({ userProfile, onStartTrade }) => {
               style={{
                 fontSize: '0.75rem',
                 fontFamily: 'var(--font-mono)',
-                color: userProfile.sessionActive ? 'var(--profit-green)' : 'var(--amber-core)',
+                color: userProfile.sessionActive 
+                  ? 'var(--profit-green)' 
+                  : (isCooldown ? 'var(--gold-bright)' : 'var(--amber-core)'),
                 padding: '2px 8px',
                 borderRadius: '10px',
-                background: userProfile.sessionActive ? 'var(--profit-bg)' : 'var(--amber-bg)',
+                background: userProfile.sessionActive 
+                  ? 'var(--profit-bg)' 
+                  : (isCooldown ? 'rgba(234, 179, 8, 0.12)' : 'var(--amber-bg)'),
+                border: isCooldown ? '1px solid rgba(234, 179, 8, 0.28)' : 'none'
               }}
             >
-              {userProfile.sessionActive ? '● 24H ARBITRAGE ACTIVE' : '○ SESSION INACTIVE'}
+              {userProfile.sessionActive 
+                ? '● 24H ARBITRAGE ACTIVE' 
+                : (isCooldown ? '⏳ 24H DAILY COOLDOWN' : '○ READY FOR NEXT SESSION')}
             </span>
           </div>
 
@@ -72,16 +91,26 @@ export const PersonalDashboard = ({ userProfile, onStartTrade }) => {
             Dedicated autonomous order flow routed exclusively through your capital package.
           </p>
 
-          {/* Progress Bar towards configured target */}
-          <div className="progress-track-wrapper">
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: '6px' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Target Profit Progress:</span>
-              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--profit-green)', fontWeight: '700' }}>
-                +{currentPct.toFixed(2)}% / +{targetPct.toFixed(2)}% Target ({progress.toFixed(1)}%)
-              </span>
+          {/* Live Real-time Arbitrage Execution Stream (Internal Target Hidden) */}
+          <div className="ledger-stream-wrapper">
+            <div className="ledger-stream-header">
+              <div className="stream-label-group">
+                <span className="stream-live-pip" style={{ background: isCooldown ? 'var(--gold-bright)' : undefined }} />
+                <span className="stream-label">
+                  {isCooldown ? 'Daily Harvest Secured:' : 'Session Arbitrage Yield:'}
+                </span>
+              </div>
+              <div className="stream-metrics-group">
+                <span className="stream-yield-val" style={{ color: isCooldown ? 'var(--gold-bright)' : undefined }}>
+                  +{currentPct.toFixed(2)}%
+                </span>
+                <span className="stream-status-pill">
+                  {userProfile.sessionActive ? 'LIVE CONDUIT STREAMING' : (isCooldown ? 'LOCKED / CYCLE ACTIVE' : 'STANDBY')}
+                </span>
+              </div>
             </div>
-            <div className="progress-track">
-              <div className="progress-fill" style={{ width: `${progress}%` }} />
+            <div className="ledger-stream-track">
+              <div className={`ledger-stream-laser ${userProfile.sessionActive ? 'active' : ''}`} />
             </div>
           </div>
         </div>
@@ -104,22 +133,44 @@ export const PersonalDashboard = ({ userProfile, onStartTrade }) => {
 
         {/* Right: 24h Countdown Clock or Launch Action */}
         <div className="session-timer-box">
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-            Session Expiration
+          <div style={{ fontSize: '0.72rem', color: isCooldown ? 'var(--gold-bright)' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            {userProfile.sessionActive 
+              ? 'Session Expiration' 
+              : (isCooldown ? 'Next Session Unlocks In' : 'Daily 24H Window')}
           </div>
-          <div className="timer-digits">
-            {userProfile.sessionActive ? countdown : '00:00:00'}
+          <div className="timer-digits" style={{ color: isCooldown ? 'var(--gold-bright)' : undefined }}>
+            {userProfile.sessionActive ? countdown : (isCooldown ? countdown : '24:00:00')}
           </div>
           <div style={{ marginTop: '12px' }}>
-            {!userProfile.sessionActive && (
+            {isCooldown ? (
+              <div 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  background: 'rgba(234, 179, 8, 0.1)',
+                  border: '1px solid rgba(234, 179, 8, 0.28)',
+                  padding: '8px 12px',
+                  borderRadius: '10px',
+                  fontSize: '0.74rem',
+                  fontFamily: 'var(--font-tech)',
+                  color: 'var(--gold-bright)',
+                  fontWeight: '600'
+                }}
+              >
+                <span>🔒</span>
+                <span>Daily Limit (1/1) • Locked</span>
+              </div>
+            ) : canLaunch ? (
               <button
                 className="nexus-btn nexus-btn-cyan"
                 style={{ width: '100%', fontSize: '0.8rem', padding: '8px 12px' }}
                 onClick={() => onStartTrade(userProfile.userId)}
               >
-                ▶ Re-Launch 24h Session
+                ▶ Launch 24h Session
               </button>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

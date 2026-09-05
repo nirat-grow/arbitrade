@@ -80,13 +80,35 @@ app.post('/api/start-trade', async (req, res) => {
         const userPackage = userCheck.rows[0];
         const packageAmount = parseFloat(userPackage.amount);
 
-        // 2. Check if active session exists
+        // 2. Check if active session or recent session within 24 hours exists
         const sessionCheck = await dbClient.query(
-            "SELECT * FROM auto_trade_sessions WHERE user_id = $1 AND is_active = true",
+            "SELECT * FROM auto_trade_sessions WHERE user_id = $1 ORDER BY id DESC LIMIT 1",
             [userId]
         );
         if (sessionCheck.rows.length > 0) {
-            return res.status(429).json({ success: false, message: 'Auto-Trade session is already running for this user.' });
+            const lastSession = sessionCheck.rows[0];
+            const now = new Date();
+            const endTime = new Date(lastSession.end_time);
+
+            if (lastSession.is_active) {
+                return res.status(429).json({ 
+                    success: false, 
+                    message: 'Auto-Trade session is currently actively running for this user.' 
+                });
+            }
+
+            // Enforce Daily 1-Trade Limit (24-Hour Cooldown)
+            if (endTime > now) {
+                const remainingMs = endTime.getTime() - now.getTime();
+                const hours = Math.floor(remainingMs / (1000 * 60 * 60));
+                const minutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+                return res.status(429).json({ 
+                    success: false, 
+                    message: `Daily 24-hour limit active (1 trade per day). Next session unlocks in ${hours}h ${minutes}m.`,
+                    cooldownActive: true,
+                    nextAvailableTime: lastSession.end_time
+                });
+            }
         }
 
         // 3. Fetch latest Admin profit percentage configuration
@@ -150,12 +172,20 @@ app.get('/api/user-profile/:userId', async (req, res) => {
         const targetPercentage = session && session.target_percentage ? parseFloat(session.target_percentage) : (balance > 0 ? (targetProfit / balance) * 100 : 0);
         const currentProfitPercentage = balance > 0 ? (currentProfit / balance) * 100 : 0;
 
+        const now = new Date();
+        const sessionEndTime = session && session.end_time ? new Date(session.end_time) : null;
+        const isCooldownActive = session && sessionEndTime && sessionEndTime > now && !session.is_active;
+        const canStartTrade = !session || (sessionEndTime && sessionEndTime <= now && !session.is_active);
+
         res.status(200).json({
             success: true,
             profile: {
                 userId,
                 balance,
                 sessionActive: session ? session.is_active : false,
+                canStartTrade,
+                isCooldownActive,
+                cooldownEndTime: isCooldownActive ? session.end_time : null,
                 currentProfit,
                 targetProfit,
                 currentProfitPercentage: parseFloat(currentProfitPercentage.toFixed(2)),

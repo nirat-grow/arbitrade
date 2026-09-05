@@ -19,7 +19,7 @@ export const Navbar = ({
         <NexusLogo size={42} />
         <div className="brand-text-wrap">
           <div className="brand-title">
-            NEXUS <span style={{ color: 'var(--gold-bright)', fontSize: '0.8rem' }}>QUANTUM</span>
+            KAROMETA
           </div>
           <div className="brand-kicker">Autonomous Arbitrage Matrix</div>
         </div>
@@ -53,12 +53,6 @@ export const Navbar = ({
 
       {/* Right Telemetry & Actions */}
       <div className="nav-actions">
-        {/* WebSocket Heartbeat */}
-        <div className="telemetry-pill">
-          <span className="pulse-dot" style={{ background: wsConnected ? 'var(--profit-green)' : 'var(--danger-core)' }} />
-          <span>{wsConnected ? 'PORT 8082 SYNC' : 'OFFLINE'}</span>
-        </div>
-
         {/* User Capsule */}
         {userProfile ? (
           <div className="user-telemetry-badge">
@@ -71,20 +65,27 @@ export const Navbar = ({
                 ? ((userProfile.currentProfit / userProfile.balance) * 100).toFixed(2)
                 : (userProfile.currentProfitPercentage || 0).toFixed(2);
 
+              const now = new Date();
+              const isCooldown = !userProfile.sessionActive && userProfile.endTime && new Date(userProfile.endTime) > now;
+
               if (userProfile.sessionActive) {
                 return (
                   <span className="user-profit-pill" title={`+$${Number(userProfile.currentProfit).toFixed(2)}`}>
                     ⚡ +{pct}%
                   </span>
                 );
-              } else if (userProfile.currentProfit > 0) {
+              } else if (isCooldown || userProfile.currentProfit > 0) {
                 return (
                   <span
                     className="user-profit-pill"
-                    style={{ background: 'rgba(16, 185, 129, 0.15)', borderColor: 'var(--profit-green)' }}
-                    title={`+$${Number(userProfile.currentProfit).toFixed(2)}`}
+                    style={{ 
+                      background: isCooldown ? 'rgba(234, 179, 8, 0.15)' : 'rgba(16, 185, 129, 0.15)', 
+                      borderColor: isCooldown ? 'var(--gold-core)' : 'var(--profit-green)',
+                      color: isCooldown ? 'var(--gold-bright)' : 'var(--profit-green)'
+                    }}
+                    title={isCooldown ? `Daily 24-hour limit active. Next trade unlocks at ${new Date(userProfile.endTime).toLocaleTimeString()}` : `+$${Number(userProfile.currentProfit).toFixed(2)}`}
                   >
-                    Target Met: +{pct}%
+                    {isCooldown ? '🔒 ' : ''}Session Yield: +{pct}%
                   </span>
                 );
               } else {
@@ -94,25 +95,34 @@ export const Navbar = ({
                     style={{ padding: '4px 12px', fontSize: '0.74rem' }}
                     onClick={() => onStartTrade(userProfile.userId)}
                   >
-                    ▶ Launch 24h
+                    ▶ Start 24h
                   </button>
                 );
               }
             })()}
           </div>
         ) : (
-          <button className="nexus-btn nexus-btn-cyan" onClick={onOpenLogin}>
-            ⚡ Launch Auto-Trade
+          <button className="nav-btn-start" onClick={onOpenLogin} title="Launch Karometa Trading Engine">
+            <span className="btn-shimmer" />
+            <svg className="btn-icon-bolt" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+            </svg>
+            <span className="btn-text">Start</span>
           </button>
         )}
 
         {/* Admin Suite Toggle */}
         <button
-          className={`nexus-btn ${isAdminRoute ? 'nexus-btn-cyan' : 'nexus-btn-ghost'}`}
-          style={{ fontSize: '0.8rem', padding: '6px 14px' }}
+          className={`nav-btn-admin ${isAdminRoute ? 'active' : ''}`}
           onClick={() => onOpenAdmin(!isAdminRoute)}
+          title={isAdminRoute ? "Return to Terminal" : "Access Karometa Admin Console"}
         >
-          {isAdminRoute ? 'Back to Terminal' : '⚙ Admin Portal'}
+          <span className="admin-status-dot" />
+          <svg className="btn-icon-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+          <span className="btn-text">{isAdminRoute ? 'Back to Terminal' : 'Admin Portal'}</span>
         </button>
       </div>
     </header>

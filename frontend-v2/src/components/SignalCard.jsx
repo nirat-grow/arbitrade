@@ -28,6 +28,12 @@ export const SignalCard = ({ signal, isExpanded, onToggle }) => {
 
   return (
     <div className={`quantum-signal-card ${isExpanded ? 'expanded' : ''}`}>
+      {/* Decorative corner brackets matching Image 1 Observatory design */}
+      <span className="card-corner card-corner-tl" />
+      <span className="card-corner card-corner-tr" />
+      <span className="card-corner card-corner-bl" />
+      <span className="card-corner card-corner-br" />
+
       {/* Top Meta Header */}
       <div className="signal-card-top">
         <div

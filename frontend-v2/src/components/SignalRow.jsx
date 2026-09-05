@@ -17,71 +17,81 @@ export const SignalRow = ({ signal, isExpanded, onToggle }) => {
   const netDisplay = formatNetProfit(signal.calculation.net, signal.profitAmount);
   const isProfit = !netDisplay.startsWith('-');
   const roiDisplay = formatROI(signal.calculation.roi);
-  const netDotColor = NETWORK_COLORS[signal.network] || 'var(--cyan-core)';
+  const netDotColor = NETWORK_COLORS[signal.network] || 'var(--gold-core)';
 
   return (
-    <>
+    <div className={`terminal-row-item ${isExpanded ? 'expanded' : ''}`}>
       <div className={`terminal-data-row ${isExpanded ? 'expanded' : ''}`} onClick={onToggle}>
-        {/* Network */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span className="network-dot-pip" style={{ background: netDotColor }} />
-          <span style={{ fontFamily: 'var(--font-tech)', fontSize: '0.84rem', fontWeight: '700', color: '#FFFFFF' }}>
+        {/* Network / Conduit */}
+        <div className="table-conduit-col">
+          <span className="table-network-pip" style={{ background: netDotColor, boxShadow: `0 0 8px ${netDotColor}66` }} />
+          <span className="table-conduit-name">
             {signal.network}
           </span>
         </div>
 
         {/* Route / Type */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
-          <span className="execution-type-pill" style={{ fontSize: '0.64rem', padding: '2px 6px' }}>
+        <div className="table-route-col">
+          <span className="table-type-badge">
             {signal.type?.toUpperCase()}
           </span>
-          <span style={{ fontFamily: 'var(--font-tech)', fontSize: '0.86rem', color: '#E2E8F0', whiteSpace: 'nowrap' }}>
-            {signal.routePath ? signal.routePath.join(' → ') : ''}
-          </span>
+          <div className="table-path-flow">
+            {signal.routePath && signal.routePath.map((token, idx) => (
+              <React.Fragment key={idx}>
+                <span className="table-path-token">{token}</span>
+                {idx < signal.routePath.length - 1 && (
+                  <span className="table-path-arrow">→</span>
+                )}
+              </React.Fragment>
+            ))}
+          </div>
         </div>
 
-        {/* Time */}
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-          {signal.timeLabel || 'Active'}
+        {/* Latency / Time */}
+        <div className="table-latency-col">
+          <span className="table-latency-chip mono-text">
+            <span className="latency-dot" />
+            {signal.timeLabel || 'Active'}
+          </span>
         </div>
 
         {/* Net Profit */}
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.94rem', fontWeight: '700' }}>
-          <span style={{ color: isProfit ? 'var(--profit-green)' : 'var(--danger-core)' }}>
+        <div className="table-yield-col mono-text">
+          <span className={`table-yield-val ${isProfit ? 'profit' : 'loss'}`}>
             {netDisplay}
           </span>
         </div>
 
         {/* ROI */}
-        <div>
-          <span className={`roi-badge-pill mono-text ${isProfit ? 'profit-badge' : 'loss-badge'}`} style={{ fontSize: '0.78rem' }}>
+        <div className="table-roi-col">
+          <span className={`roi-badge-pill mono-text ${isProfit ? 'profit-badge' : 'loss-badge'}`}>
             {roiDisplay}
           </span>
         </div>
 
         {/* Action Toggle */}
-        <div style={{ textAlign: 'right' }}>
-          <span
-            style={{
-              color: 'var(--cyan-core)',
-              fontSize: '0.75rem',
-              transform: isExpanded ? 'rotate(180deg)' : 'none',
-              display: 'inline-block',
-              transition: 'transform 0.2s',
+        <div className="table-action-col">
+          <button
+            type="button"
+            className={`table-inspect-chevron-btn ${isExpanded ? 'active' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle();
             }}
+            title={isExpanded ? 'Collapse Telemetry' : 'Inspect Telemetry'}
           >
-            ▼
-          </span>
+            <span className="table-chevron-icon">{isExpanded ? '▲' : '▼'}</span>
+          </button>
         </div>
       </div>
 
       {/* Expanded Details Row */}
       {isExpanded && (
-        <div style={{ gridColumn: '1 / -1', background: 'var(--bg-deep)' }}>
+        <div className="terminal-expanded-drawer-wrap">
           <SignalDetailDrawer data={signal} isTable={true} />
         </div>
       )}
-    </>
+    </div>
   );
 };
 

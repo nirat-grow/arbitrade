@@ -299,6 +299,12 @@ export default function App() {
 
           {/* Control Bar: Filters, Search, View Layout Switcher */}
           <div className="matrix-control-bar">
+            {/* Decorative corner brackets matching Image 1 Observatory design */}
+            <span className="control-corner control-corner-tl" />
+            <span className="control-corner control-corner-tr" />
+            <span className="control-corner control-corner-bl" />
+            <span className="control-corner control-corner-br" />
+
             {/* Chain Filters */}
             <div className="filter-chain-group">
               <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontFamily: 'var(--font-tech)', textTransform: 'uppercase', marginRight: '4px' }}>
@@ -420,22 +426,45 @@ export default function App() {
           ) : (
             /* Mode B: High-Density Terminal Table */
             <div className="terminal-table-container">
-              <div className="terminal-header-row">
-                <div>Conduit</div>
-                <div>Execution Route</div>
-                <div>Latency</div>
-                <div>Net Yield ($)</div>
-                <div>Est. ROI</div>
-                <div style={{ textAlign: 'right' }}>Inspect</div>
+              {/* Decorative corner brackets matching Observatory design */}
+              <span className="table-corner table-corner-tl" />
+              <span className="table-corner table-corner-tr" />
+              <span className="table-corner table-corner-bl" />
+              <span className="table-corner table-corner-br" />
+
+              {/* Top Title Bar matching screenshot */}
+              <div className="terminal-card-topbar">
+                <div className="topbar-title-wrap">
+                  <div className="topbar-icon-badge">
+                    <svg className="topbar-icon-bolt" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                    </svg>
+                  </div>
+                  <h3 className="topbar-title">Current Running Conduits</h3>
+                  <span className="topbar-active-pill">{filteredSignals.length} Active</span>
+                </div>
               </div>
-              {filteredSignals.map((signal) => (
-                <SignalRow
-                  key={signal.id}
-                  signal={signal}
-                  isExpanded={expandedSignalId === signal.id}
-                  onToggle={() => setExpandedSignalId(expandedSignalId === signal.id ? null : signal.id)}
-                />
-              ))}
+
+              <div className="terminal-header-row">
+                <div className="header-cell">Conduit</div>
+                <div className="header-cell">Execution Route</div>
+                <div className="header-cell">Latency</div>
+                <div className="header-cell">Net Yield ($)</div>
+                <div className="header-cell">Est. ROI</div>
+                <div className="header-cell" style={{ textAlign: 'right', justifyContent: 'flex-end' }}>
+                  Inspect
+                </div>
+              </div>
+              <div className="terminal-rows-list">
+                {filteredSignals.map((signal) => (
+                  <SignalRow
+                    key={signal.id}
+                    signal={signal}
+                    isExpanded={expandedSignalId === signal.id}
+                    onToggle={() => setExpandedSignalId(expandedSignalId === signal.id ? null : signal.id)}
+                  />
+                ))}
+              </div>
             </div>
           )}
         </main>
