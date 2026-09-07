@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Navbar from './components/Navbar';
 import HeaderSection from './components/HeaderSection';
 import SignalEqualizer from './components/SignalEqualizer';
@@ -26,21 +26,22 @@ export default function App() {
   // Active Inspection & Visual Stability Refs
   const expandedSignalIdRef = useRef(null);
   const frozenIdsRef = useRef(null);
+  const filteredSignalsRef = useRef([]);
   const wsRef = useRef(null);
 
-  const handleToggleExpand = (id) => {
+  const handleToggleExpand = useCallback((id) => {
     setExpandedSignalId((prev) => {
       const next = prev === id ? null : id;
       expandedSignalIdRef.current = next;
-      if (next) {
+      if (next && filteredSignalsRef.current) {
         // Freeze the current visual order of filtered signals so rows do not jump
-        frozenIdsRef.current = filteredSignals.map((s) => s.id);
+        frozenIdsRef.current = filteredSignalsRef.current.map((s) => s.id);
       } else {
         frozenIdsRef.current = null;
       }
       return next;
     });
-  };
+  }, []);
 
   const handleChainChange = (chain) => {
     setSelectedChain(chain);
@@ -389,43 +390,48 @@ export default function App() {
   const activeFeed = currentView === 'global'
     ? globalSignals
     : (userProfile ? personalSignals : ledgerSignals);
-  const filteredSignals = activeFeed
-    .filter((signal) => {
-      if (selectedChain !== 'All' && signal.network?.toLowerCase() !== selectedChain.toLowerCase()) {
-        return false;
-      }
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const inNetwork = signal.network?.toLowerCase().includes(q);
-        const inType = signal.type?.toLowerCase().includes(q);
-        const inRoute = signal.routePath?.some((token) => token.toLowerCase().includes(q));
-        if (!inNetwork && !inType && !inRoute) return false;
-      }
-      return true;
-    })
-    .sort((a, b) => {
-      // 1. When an item is actively inspected, strictly lock the visual sequence so rows don't shift
-      if (expandedSignalId && frozenIdsRef.current) {
-        const idxA = frozenIdsRef.current.indexOf(a.id);
-        const idxB = frozenIdsRef.current.indexOf(b.id);
-        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-        if (idxA !== -1) return -1;
-        if (idxB !== -1) return 1;
-      }
 
-      // 2. Standard user-selected sorting
-      if (sortBy === 'profit') {
-        const profitA = a.profitAmount || parseFloat(a.calculation?.net?.replace(/[^0-9.-]+/g, '')) || 0;
-        const profitB = b.profitAmount || parseFloat(b.calculation?.net?.replace(/[^0-9.-]+/g, '')) || 0;
-        return profitB - profitA;
-      }
-      if (sortBy === 'roi') {
-        const roiA = parseFloat(a.calculation?.roi) || 0;
-        const roiB = parseFloat(b.calculation?.roi) || 0;
-        return roiB - roiA;
-      }
-      return 0; // default recent order
-    });
+  const filteredSignals = useMemo(() => {
+    return activeFeed
+      .filter((signal) => {
+        if (selectedChain !== 'All' && signal.network?.toLowerCase() !== selectedChain.toLowerCase()) {
+          return false;
+        }
+        if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase();
+          const inNetwork = signal.network?.toLowerCase().includes(q);
+          const inType = signal.type?.toLowerCase().includes(q);
+          const inRoute = signal.routePath?.some((token) => token.toLowerCase().includes(q));
+          if (!inNetwork && !inType && !inRoute) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        // 1. When an item is actively inspected, strictly lock the visual sequence so rows don't shift
+        if (expandedSignalId && frozenIdsRef.current) {
+          const idxA = frozenIdsRef.current.indexOf(a.id);
+          const idxB = frozenIdsRef.current.indexOf(b.id);
+          if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+          if (idxA !== -1) return -1;
+          if (idxB !== -1) return 1;
+        }
+
+        // 2. Standard user-selected sorting
+        if (sortBy === 'profit') {
+          const profitA = a.profitAmount || parseFloat(a.calculation?.net?.replace(/[^0-9.-]+/g, '')) || 0;
+          const profitB = b.profitAmount || parseFloat(b.calculation?.net?.replace(/[^0-9.-]+/g, '')) || 0;
+          return profitB - profitA;
+        }
+        if (sortBy === 'roi') {
+          const roiA = parseFloat(a.calculation?.roi) || 0;
+          const roiB = parseFloat(b.calculation?.roi) || 0;
+          return roiB - roiA;
+        }
+        return 0; // default recent order
+      });
+  }, [activeFeed, selectedChain, searchQuery, sortBy, expandedSignalId]);
+
+  filteredSignalsRef.current = filteredSignals;
 
   return (
     <div className="nexus-app">
@@ -612,7 +618,7 @@ export default function App() {
                   key={signal.id}
                   signal={signal}
                   isExpanded={expandedSignalId === signal.id}
-                  onToggle={() => handleToggleExpand(signal.id)}
+                  onToggle={handleToggleExpand}
                 />
               ))}
             </div>
@@ -661,7 +667,7 @@ export default function App() {
                     key={signal.id}
                     signal={signal}
                     isExpanded={expandedSignalId === signal.id}
-                    onToggle={() => handleToggleExpand(signal.id)}
+                    onToggle={handleToggleExpand}
                   />
                 ))}
               </div>

@@ -11,7 +11,7 @@ const NETWORK_COLORS = {
   Base: '#3B82F6',
 };
 
-export const SignalRow = ({ signal, isExpanded, onToggle }) => {
+export const SignalRow = React.memo(({ signal, isExpanded, onToggle }) => {
   if (!signal || !signal.calculation) return null;
 
   const txHash = signal.txHash || getDeterministicTxHash(signal);
@@ -20,9 +20,16 @@ export const SignalRow = ({ signal, isExpanded, onToggle }) => {
   const roiDisplay = formatROI(signal.calculation.roi);
   const netDotColor = NETWORK_COLORS[signal.network] || 'var(--gold-core)';
 
+  const handleRowToggle = (e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (typeof onToggle === 'function') {
+      onToggle(signal.id);
+    }
+  };
+
   return (
     <div className={`terminal-row-item ${isExpanded ? 'expanded' : ''}`}>
-      <div className={`terminal-data-row ${isExpanded ? 'expanded' : ''}`} onClick={onToggle}>
+      <div className={`terminal-data-row ${isExpanded ? 'expanded' : ''}`} onClick={handleRowToggle}>
         {/* Network / Conduit */}
         <div className="table-conduit-col">
           <span className="table-network-pip" style={{ background: netDotColor, boxShadow: `0 0 8px ${netDotColor}66` }} />
@@ -75,10 +82,7 @@ export const SignalRow = ({ signal, isExpanded, onToggle }) => {
           <button
             type="button"
             className={`table-inspect-chevron-btn ${isExpanded ? 'active' : ''}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggle();
-            }}
+            onClick={handleRowToggle}
             aria-expanded={isExpanded}
             title={isExpanded ? 'Collapse Telemetry' : 'Inspect Telemetry'}
           >
@@ -107,6 +111,6 @@ export const SignalRow = ({ signal, isExpanded, onToggle }) => {
       )}
     </div>
   );
-};
+});
 
 export default SignalRow;

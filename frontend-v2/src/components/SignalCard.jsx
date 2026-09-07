@@ -11,7 +11,7 @@ const NETWORK_COLORS = {
   Base: { bg: 'rgba(0, 82, 255, 0.12)', border: 'rgba(0, 82, 255, 0.35)', color: '#3B82F6', dot: '#0052FF' },
 };
 
-export const SignalCard = ({ signal, isExpanded, onToggle }) => {
+export const SignalCard = React.memo(({ signal, isExpanded, onToggle }) => {
   if (!signal || !signal.calculation) return null;
 
   const txHash = signal.txHash || getDeterministicTxHash(signal);
@@ -25,6 +25,13 @@ export const SignalCard = ({ signal, isExpanded, onToggle }) => {
     border: 'rgba(234, 179, 8, 0.35)',
     color: 'var(--gold-bright)',
     dot: 'var(--gold-core)',
+  };
+
+  const handleCardToggle = (e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (typeof onToggle === 'function') {
+      onToggle(signal.id);
+    }
   };
 
   return (
@@ -104,7 +111,7 @@ export const SignalCard = ({ signal, isExpanded, onToggle }) => {
       <button 
         type="button"
         className={`inspect-expand-btn ${isExpanded ? 'active' : ''}`} 
-        onClick={onToggle}
+        onClick={handleCardToggle}
         aria-expanded={isExpanded}
       >
         <span>{isExpanded ? 'Collapse Telemetry' : 'Inspect Conduit Execution'}</span>
@@ -127,6 +134,6 @@ export const SignalCard = ({ signal, isExpanded, onToggle }) => {
       {isExpanded && <SignalDetailDrawer data={signal} isTable={false} />}
     </div>
   );
-};
+});
 
 export default SignalCard;

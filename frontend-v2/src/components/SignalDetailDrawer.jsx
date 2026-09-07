@@ -85,7 +85,7 @@ const CopyAddressChip = ({ address, network, label }) => {
   );
 };
 
-export const SignalDetailDrawer = ({ data, isTable = false }) => {
+export const SignalDetailDrawer = React.memo(({ data, isTable = false }) => {
   if (!data?.calculation) return null;
 
   const [copiedTx, setCopiedTx] = useState(false);
@@ -373,6 +373,6 @@ export const SignalDetailDrawer = ({ data, isTable = false }) => {
       </div>
     </div>
   );
-};
+});
 
 export default SignalDetailDrawer;
