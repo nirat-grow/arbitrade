@@ -72,7 +72,7 @@ export default function HeaderSection({ currentView, userProfile }) {
     userProfile?.sessionActive ? userProfile?.endTime : null
   );
 
-  if (currentView === 'personal') {
+  if (currentView === 'ledger' || currentView === 'personal') {
     return (
       <header className="nexus-observatory-deck personal-mode" id="nexus-header-section">
         {/* Decorative corner brackets */}
@@ -87,53 +87,78 @@ export default function HeaderSection({ currentView, userProfile }) {
             <div className="deck-kicker">
               <span className="deck-kicker-badge personal">
                 <span className="deck-kicker-ping" />
-                PRIVATE CONDUIT // ACTIVE
+                {userProfile ? 'PRIVATE CONDUIT • ACTIVE' : 'EXECUTION LEDGER • VERIFIED STREAM'}
               </span>
-              <span className="deck-kicker-sep">/</span>
-              <span className="deck-kicker-tag">NODE: {userProfile?.userId || 'USER'}</span>
+              <span className="deck-kicker-sep">•</span>
+              <span className="deck-kicker-tag">
+                {userProfile ? `NODE: ${userProfile.userId}` : 'MULTI-CHAIN ATTESTED'}
+              </span>
             </div>
 
             <h1 className="deck-heading">
-              <span className="deck-heading-gold">AUTONOMOUS</span>{' '}
-              <span className="deck-heading-outline">EXECUTION MATRIX</span>
+              {userProfile ? (
+                <>
+                  <span className="deck-heading-gold">PERSONAL</span>{' '}
+                  <span className="deck-heading-outline">LEDGER</span>
+                </>
+              ) : (
+                <>
+                  <span className="deck-heading-gold">AUTONOMOUS</span>{' '}
+                  <span className="deck-heading-outline">EXECUTION LEDGER</span>
+                </>
+              )}
             </h1>
 
             <p className="deck-subtext">
-              Real-time multi-hop arbitrage routing executed via your allocated private liquidity pool.
+              {userProfile
+                ? 'Dedicated autonomous order flow routed exclusively through your allocated capital.'
+                : 'Decentralized multi-hop arbitrage settlements executed and verified across all live AMM conduits.'}
             </p>
           </div>
 
           {/* Right: Quantum Telemetry Console */}
           <div className="deck-telemetry-console">
-            {/* Telemetry Pod 1: Session Countdown */}
+            {/* Telemetry Pod 1: Session / Consensus Status */}
             <div className="telemetry-pod">
               <div className="pod-header">
                 <span className="pod-pip gold" />
                 <span className="pod-label">
-                  {userProfile?.sessionActive ? 'SESSION ENDS IN' : 'SESSION STATUS'}
+                  {userProfile
+                    ? (userProfile.sessionActive ? 'SESSION ENDS IN' : 'SESSION STATUS')
+                    : 'LEDGER INTEGRITY'}
                 </span>
               </div>
               <div className="pod-primary-value gold-digits">
-                {userProfile?.sessionActive ? sessionTimeLeft : 'STANDBY'}
+                {userProfile
+                  ? (userProfile.sessionActive ? sessionTimeLeft : 'STANDBY')
+                  : 'CONSENSUS SYNC'}
               </div>
               <div className="pod-footer-meta">
                 <span className="pod-meta-chip">
-                  {userProfile?.sessionActive ? 'AUTO-ROUTER ACTIVE' : 'AWAITING DISPATCH'}
+                  {userProfile
+                    ? (userProfile.sessionActive ? 'AUTO-ROUTER ACTIVE' : 'AWAITING DISPATCH')
+                    : 'REAL-TIME SETTLEMENTS'}
                 </span>
               </div>
             </div>
 
-            {/* Telemetry Pod 2: Block & Capital */}
+            {/* Telemetry Pod 2: Capital or Block Anchor */}
             <div className="telemetry-pod">
               <div className="pod-header">
                 <span className="pod-pip" />
-                <span className="pod-label">ALLOCATED LIQUIDITY</span>
+                <span className="pod-label">
+                  {userProfile ? 'ALLOCATED LIQUIDITY' : 'CONSENSUS ANCHOR'}
+                </span>
               </div>
               <div className="pod-primary-value">
-                ${(userProfile?.initialDeposit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                {userProfile
+                  ? `$${(userProfile.balance || userProfile.initialDeposit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                  : `BLOCK #${blockNum.toLocaleString()}`}
               </div>
               <div className="pod-footer-meta">
-                <span className="pod-block-label">UTC - BLOCK #{blockNum.toLocaleString()}</span>
+                <span className="pod-block-label">
+                  {userProfile ? `NODE • ACTIVE` : `UTC - ${utcTime || 'LIVE SYNC'}`}
+                </span>
               </div>
             </div>
           </div>
@@ -159,7 +184,7 @@ export default function HeaderSection({ currentView, userProfile }) {
               <span className="deck-kicker-ping" />
               OBSERVATORY CLUSTER
             </span>
-            <span className="deck-kicker-sep">//</span>
+            <span className="deck-kicker-sep">•</span>
             <span className="deck-kicker-number">04</span>
             <span className="deck-kicker-sep">•</span>
             <span className="deck-kicker-live">LIVE FEED ACTIVE</span>
@@ -181,7 +206,7 @@ export default function HeaderSection({ currentView, userProfile }) {
           <div className="telemetry-pod">
             <div className="pod-header">
               <span className="pod-pip gold" />
-              <span className="pod-label">LAST SYNC / UTC</span>
+              <span className="pod-label">LAST SYNC (UTC)</span>
             </div>
             <div className="pod-primary-value gold-digits">
               {utcTime ? `${utcTime} UTC` : 'SYNCHRONIZING...'}

@@ -1,6 +1,6 @@
 import React from 'react';
 import SignalDetailDrawer from './SignalDetailDrawer';
-import { formatNetProfit, formatROI } from '../utils/formatters';
+import { formatNetProfit, formatROI, shortenAddress, getDeterministicTxHash } from '../utils/formatters';
 
 const NETWORK_COLORS = {
   Avalanche: { bg: 'rgba(232, 65, 66, 0.12)', border: 'rgba(232, 65, 66, 0.35)', color: '#FF5C5C', dot: '#E84142' },
@@ -14,6 +14,7 @@ const NETWORK_COLORS = {
 export const SignalCard = ({ signal, isExpanded, onToggle }) => {
   if (!signal || !signal.calculation) return null;
 
+  const txHash = signal.txHash || getDeterministicTxHash(signal);
   const netDisplay = formatNetProfit(signal.calculation.net, signal.profitAmount);
   const isProfit = !netDisplay.startsWith('-');
   const roiDisplay = formatROI(signal.calculation.roi);
@@ -44,7 +45,7 @@ export const SignalCard = ({ signal, isExpanded, onToggle }) => {
           {signal.network?.toUpperCase()}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span className="execution-type-pill">
             {signal.type?.toUpperCase() || 'ARBITRAGE'}
           </span>
@@ -100,9 +101,26 @@ export const SignalCard = ({ signal, isExpanded, onToggle }) => {
       </div>
 
       {/* Expand / Collapse Action Button */}
-      <button className={`inspect-expand-btn ${isExpanded ? 'active' : ''}`} onClick={onToggle}>
+      <button 
+        type="button"
+        className={`inspect-expand-btn ${isExpanded ? 'active' : ''}`} 
+        onClick={onToggle}
+        aria-expanded={isExpanded}
+      >
         <span>{isExpanded ? 'Collapse Telemetry' : 'Inspect Conduit Execution'}</span>
-        <span className={`chevron-icon ${isExpanded ? 'open' : ''}`}>▼</span>
+        <svg
+          className={`card-chevron-svg ${isExpanded ? 'rotated' : ''}`}
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
       </button>
 
       {/* Deep Inspection Drawer (Vertical flow inside card) */}

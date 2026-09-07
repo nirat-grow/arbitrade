@@ -7,6 +7,7 @@ export const Navbar = ({
   onViewChange,
   onOpenLogin,
   onStartTrade,
+  onLogout,
   isReadOnlyProfile,
   wsConnected = true,
   onOpenAdmin,
@@ -25,7 +26,7 @@ export const Navbar = ({
         </div>
       </div>
 
-      {/* Center Mode Switcher (Hide if in Admin Mode) */}
+      {/* Center Nav Switcher: Global Matrix vs Personal/Execution Ledger */}
       {!isAdminRoute && (
         <div className="nav-mode-switcher">
           <button
@@ -36,17 +37,17 @@ export const Navbar = ({
             Global Matrix
           </button>
           <button
-            className={`mode-btn ${currentView === 'personal' ? 'active' : ''}`}
-            onClick={() => {
-              if (userProfile) {
-                onViewChange('personal');
-              } else {
-                onOpenLogin();
-              }
-            }}
+            className={`mode-btn ${currentView === 'ledger' || currentView === 'personal' ? 'active' : ''}`}
+            onClick={() => onViewChange(userProfile ? 'personal' : 'ledger')}
           >
             <span className="mode-pip" />
-            Personal Ledger {userProfile && <span style={{ color: 'var(--gold-bright)' }}>•</span>}
+            {userProfile ? (
+              <>
+                Personal Ledger <span style={{ color: 'var(--gold-bright)' }}>•</span>
+              </>
+            ) : (
+              'Execution Ledger'
+            )}
           </button>
         </div>
       )}
@@ -60,6 +61,26 @@ export const Navbar = ({
             <span className="user-balance-value">
               ${userProfile.balance ? userProfile.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
             </span>
+            {onLogout && (
+              <button
+                type="button"
+                className="user-logout-btn"
+                onClick={onLogout}
+                title="Disconnect from account"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'rgba(255, 255, 255, 0.4)',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem',
+                  padding: '2px 4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+              >
+                ✕
+              </button>
+            )}
             {(() => {
               const pct = userProfile.balance > 0
                 ? ((userProfile.currentProfit / userProfile.balance) * 100).toFixed(2)
@@ -91,7 +112,7 @@ export const Navbar = ({
               } else {
                 return (
                   <button
-                    className="nexus-btn nexus-btn-cyan"
+                    className="nexus-btn nexus-btn-gold"
                     style={{ padding: '4px 12px', fontSize: '0.74rem' }}
                     onClick={() => onStartTrade(userProfile.userId)}
                   >

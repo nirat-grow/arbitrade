@@ -55,7 +55,7 @@ export default function SignalEqualizer({ barCount = 28 }) {
           </div>
           <div className="spectrum-beacon-subtitle">
             <span className="live-feed-dot" />
-            42 POOLS POLLING // CONTINUOUS
+            42 POOLS POLLING • CONTINUOUS
           </div>
         </div>
       </div>

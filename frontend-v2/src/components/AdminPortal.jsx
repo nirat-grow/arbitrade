@@ -168,7 +168,7 @@ export const AdminPortal = ({ onBackToTerminal }) => {
               </div>
             )}
 
-            <button type="submit" className="nexus-btn nexus-btn-cyan" style={{ width: '100%', marginTop: '8px' }} disabled={authLoading}>
+            <button type="submit" className="nexus-btn nexus-btn-gold" style={{ width: '100%', marginTop: '8px' }} disabled={authLoading}>
               {authLoading ? 'Verifying Access...' : 'Authenticate'}
             </button>
             <button
@@ -371,7 +371,7 @@ export const AdminPortal = ({ onBackToTerminal }) => {
         <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
           <button
             type="button"
-            className="nexus-btn nexus-btn-cyan"
+            className="nexus-btn nexus-btn-gold"
             style={{ padding: '12px 28px', fontSize: '0.9rem' }}
             onClick={handleSaveConfig}
             disabled={saving}

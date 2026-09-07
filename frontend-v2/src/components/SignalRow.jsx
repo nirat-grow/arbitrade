@@ -1,6 +1,6 @@
 import React from 'react';
 import SignalDetailDrawer from './SignalDetailDrawer';
-import { formatNetProfit, formatROI } from '../utils/formatters';
+import { formatNetProfit, formatROI, shortenAddress, getDeterministicTxHash } from '../utils/formatters';
 
 const NETWORK_COLORS = {
   Avalanche: '#FF5C5C',
@@ -14,6 +14,7 @@ const NETWORK_COLORS = {
 export const SignalRow = ({ signal, isExpanded, onToggle }) => {
   if (!signal || !signal.calculation) return null;
 
+  const txHash = signal.txHash || getDeterministicTxHash(signal);
   const netDisplay = formatNetProfit(signal.calculation.net, signal.profitAmount);
   const isProfit = !netDisplay.startsWith('-');
   const roiDisplay = formatROI(signal.calculation.roi);
@@ -78,9 +79,22 @@ export const SignalRow = ({ signal, isExpanded, onToggle }) => {
               e.stopPropagation();
               onToggle();
             }}
+            aria-expanded={isExpanded}
             title={isExpanded ? 'Collapse Telemetry' : 'Inspect Telemetry'}
           >
-            <span className="table-chevron-icon">{isExpanded ? '▲' : '▼'}</span>
+            <svg
+              className={`table-chevron-svg ${isExpanded ? 'rotated' : ''}`}
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
           </button>
         </div>
       </div>

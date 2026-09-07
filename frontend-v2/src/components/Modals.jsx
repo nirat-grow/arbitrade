@@ -29,13 +29,25 @@ export const Toast = ({ message, type = 'success', onClose }) => {
 
 export const LoginModal = ({ isOpen, onClose, onLogin }) => {
   const [userId, setUserId] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setIsSubmitting(false);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!userId.trim()) return;
-    onLogin(userId.trim());
+  const handleSubmit = async (e) => {
+    if (e) e.preventDefault();
+    if (!userId.trim() || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await onLogin(userId.trim());
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -81,7 +93,7 @@ export const LoginModal = ({ isOpen, onClose, onLogin }) => {
           {/* Security Protocol Kicker */}
           <div className="modal-kicker-bar">
             <span className="modal-kicker-pip" />
-            <span className="modal-kicker-title">KAROMETA // QUANTUM CONDUIT</span>
+            <span className="modal-kicker-title">KAROMETA • QUANTUM CONDUIT</span>
             <span className="modal-kicker-secure">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
@@ -146,21 +158,36 @@ export const LoginModal = ({ isOpen, onClose, onLogin }) => {
             <div className="modal-quick-select-row">
               <span className="quick-select-label">Quick Fill:</span>
               <button type="button" className="quick-select-chip" onClick={() => setUserId('user_750')}>user_750</button>
-              <button type="button" className="quick-select-chip" onClick={() => setUserId('user_test1')}>user_test1</button>
-              <button type="button" className="quick-select-chip" onClick={() => setUserId('user_1000')}>user_1000</button>
+              <button type="button" className="quick-select-chip" onClick={() => setUserId('user_751')}>user_751</button>
+              <button type="button" className="quick-select-chip" onClick={() => setUserId('user_752')}>user_752</button>
+              <button type="button" className="quick-select-chip" onClick={() => setUserId('user_700')}>user_700</button>
             </div>
           </div>
 
           <div className="modal-btn-row">
-            <button type="button" className="modal-btn-cancel" onClick={onClose}>
+            <button type="button" className="modal-btn-cancel" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </button>
-            <button type="submit" className="modal-btn-submit">
+            <button 
+              type="submit" 
+              className={`modal-btn-submit ${isSubmitting ? 'submitting' : ''}`}
+              disabled={isSubmitting || !userId.trim()}
+              style={{
+                opacity: (!userId.trim() && !isSubmitting) ? 0.75 : 1,
+                cursor: isSubmitting ? 'wait' : 'pointer'
+              }}
+            >
               <span className="btn-shimmer" />
-              <svg className="btn-icon-bolt" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-              </svg>
-              <span className="btn-text">INITIALIZE SESSION</span>
+              {isSubmitting ? (
+                <span className="btn-spinner" />
+              ) : (
+                <svg className="btn-icon-bolt" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                </svg>
+              )}
+              <span className="btn-text">
+                {isSubmitting ? 'AUTHENTICATING CONDUIT...' : 'INITIALIZE SESSION'}
+              </span>
             </button>
           </div>
         </form>

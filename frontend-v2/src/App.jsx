@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Navbar from './components/Navbar';
 import HeaderSection from './components/HeaderSection';
 import SignalEqualizer from './components/SignalEqualizer';
@@ -17,10 +17,40 @@ export default function App() {
 
   // Data states
   const [globalSignals, setGlobalSignals] = useState([]);
+  const [ledgerSignals, setLedgerSignals] = useState([]);
   const [personalSignals, setPersonalSignals] = useState([]);
   const [userProfile, setUserProfile] = useState(null);
   const [adminStats, setAdminStats] = useState(null);
   const [expandedSignalId, setExpandedSignalId] = useState(null);
+
+  // Active Inspection & Visual Stability Refs
+  const expandedSignalIdRef = useRef(null);
+  const frozenIdsRef = useRef(null);
+  const wsRef = useRef(null);
+
+  const handleToggleExpand = (id) => {
+    setExpandedSignalId((prev) => {
+      const next = prev === id ? null : id;
+      expandedSignalIdRef.current = next;
+      if (next) {
+        // Freeze the current visual order of filtered signals so rows do not jump
+        frozenIdsRef.current = filteredSignals.map((s) => s.id);
+      } else {
+        frozenIdsRef.current = null;
+      }
+      return next;
+    });
+  };
+
+  const handleChainChange = (chain) => {
+    setSelectedChain(chain);
+    frozenIdsRef.current = null;
+  };
+
+  const handleSortChange = (newSort) => {
+    setSortBy(newSort);
+    frozenIdsRef.current = null;
+  };
 
   // Filters & Search
   const [selectedChain, setSelectedChain] = useState('All');
@@ -59,36 +89,96 @@ export default function App() {
 
   // 2. Fetch User Profile
   const fetchProfile = async (id) => {
-    if (!id) return;
+    if (!id) return null;
     try {
       const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
       const res = await fetch(`${protocol}//${window.location.host}/api/user-profile/${id}`);
       const data = await res.json();
-      if (data.success) {
+      if (data.success && data.profile) {
         setUserProfile(data.profile);
         if (data.trades && data.trades.length > 0) {
           const formatted = data.trades.map((t) => {
-            const d = t.trade_details;
+            const d = typeof t.trade_details === 'string' ? JSON.parse(t.trade_details) : t.trade_details;
             return {
               id: t.id,
-              type: d.type,
-              network: d.network,
+              type: d.type || 'Arbitrage',
+              network: d.network || 'Ethereum',
               timeLabel: 'Executed',
               routePath: d.routePath,
               calculation: d.calculation,
               hops: d.hops,
               profitAmount: parseFloat(t.profit_amount),
+              tradeAmount: parseFloat(t.trade_amount),
+              createdAt: t.created_at,
+              txHash: d.txHash || d.calculation?.txHash,
             };
           });
           setPersonalSignals(formatted);
+        } else {
+          setPersonalSignals([]);
         }
+        return data.profile;
       }
+      return null;
     } catch (err) {
       console.error('Error fetching profile:', err);
+      return null;
     }
   };
 
-  // 3. Detect URL Parameters (?userId=... or /user_...)
+  const handleLogout = () => {
+    localStorage.removeItem('karometa_user_id');
+    setUserProfile(null);
+    setPersonalSignals([]);
+    setCurrentView('ledger');
+    if (window.history && window.history.pushState) {
+      window.history.pushState({}, '', '/');
+    }
+    showToast('Disconnected from personal account session.', 'info');
+  };
+
+  // 3. Fetch All Users' Executed Trades (Completely Anonymous / No User ID Exposure)
+  const fetchAllHistoryTrades = async () => {
+    try {
+      const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+      const res = await fetch(`${protocol}//${window.location.host}/api/all-history`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.trades)) {
+        const formatted = data.trades.slice(0, 100).map((t) => {
+          const d = typeof t.trade_details === 'string' ? JSON.parse(t.trade_details) : t.trade_details;
+          return {
+            id: t.id,
+            type: d.type || 'Arbitrage',
+            network: d.network || 'Ethereum',
+            timeLabel: 'Executed',
+            routePath: d.routePath,
+            calculation: d.calculation,
+            hops: d.hops,
+            profitAmount: parseFloat(t.profit_amount),
+            tradeAmount: parseFloat(t.trade_amount),
+            createdAt: t.created_at,
+            txHash: d.txHash || d.calculation?.txHash,
+            // User identity is strictly excluded to preserve complete privacy
+          };
+        });
+        setLedgerSignals(formatted);
+      }
+    } catch (err) {
+      console.error('Error fetching all history trades:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchAllHistoryTrades();
+  }, []);
+
+  useEffect(() => {
+    if (currentView === 'ledger' || currentView === 'personal') {
+      fetchAllHistoryTrades();
+    }
+  }, [currentView]);
+
+  // 4. Detect URL Parameters (?userId=...) or saved user in localStorage
   useEffect(() => {
     if (window.location.pathname === '/admin') {
       setIsAdminMode(true);
@@ -105,14 +195,16 @@ export default function App() {
       }
     }
 
-    if (uid) {
-      setIsReadOnlyProfile(true);
-      setCurrentView('personal');
-      fetchProfile(uid);
+    const savedUid = localStorage.getItem('karometa_user_id');
+    const effectiveUid = uid || savedUid;
+
+    if (effectiveUid) {
+      if (uid) setIsReadOnlyProfile(true);
+      fetchProfile(effectiveUid);
     }
   }, []);
 
-  // 4. WebSocket Real-time Feed Connection
+  // 4. WebSocket Real-time Feed Connection (Continuous stream, decoupled from tab view)
   useEffect(() => {
     let ws;
     let reconnectTimer;
@@ -121,11 +213,12 @@ export default function App() {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       let wsUrl = `${protocol}//${window.location.host}/ws`;
 
-      if (currentView === 'personal' && userProfile) {
+      if (userProfile?.userId) {
         wsUrl += `?userId=${userProfile.userId}`;
       }
 
       ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
 
       ws.onopen = () => {
         setWsConnected(true);
@@ -155,24 +248,74 @@ export default function App() {
             return;
           }
 
-          if (currentView === 'personal') {
-            setPersonalSignals((prev) => {
-              const incoming = Array.isArray(data) ? data : [data];
-              const unique = incoming.filter((d) => !prev.some((p) => p.id === d.id));
-              return [...unique, ...prev].slice(0, 50);
+          // Append incoming executed trades to all users' Execution Ledger in real-time
+          const incomingTrades = Array.isArray(data) ? data : [data];
+          const executedTrades = incomingTrades.filter(
+            (d) => d.calculation && (d.profitAmount !== undefined || d.isLedgerTrade)
+          );
+
+          if (executedTrades.length > 0) {
+            setLedgerSignals((prev) => {
+              const unique = executedTrades.filter((item) => !prev.some((p) => p.id === item.id));
+              if (unique.length === 0) return prev;
+              return [...unique, ...prev].slice(0, 100);
             });
 
-            // Optimistically increment profile profit
-            const incoming = Array.isArray(data) ? data : [data];
-            const liveTrades = incoming.filter((d) => !d.isHistory);
-            if (liveTrades.length > 0) {
-              const addedProfit = liveTrades.reduce((sum, d) => sum + (d.profitAmount || 0), 0);
-              setUserProfile((prev) => (prev ? { ...prev, currentProfit: prev.currentProfit + addedProfit } : prev));
+            // If current logged-in user owns any of these trades, append to personalSignals and update profile
+            if (userProfile) {
+              const myTrades = executedTrades.filter((d) => d.isPersonalMatch);
+              if (myTrades.length > 0) {
+                setPersonalSignals((prev) => {
+                  const uniqueMy = myTrades.filter((item) => !prev.some((p) => p.id === item.id));
+                  if (uniqueMy.length === 0) return prev;
+                  return [...uniqueMy, ...prev].slice(0, 50);
+                });
+
+                const freshTrades = myTrades.filter((d) => !d.isHistory);
+                const addedProfit = freshTrades.reduce((sum, d) => sum + (d.profitAmount || 0), 0);
+                if (addedProfit > 0) {
+                  setUserProfile((prev) => (prev ? { ...prev, currentProfit: prev.currentProfit + addedProfit } : prev));
+                }
+              }
             }
-          } else {
-            if (Array.isArray(data)) {
-              setGlobalSignals(data);
-            }
+          }
+
+          // Update Global Scanner signals if payload is scanner array
+          if (Array.isArray(data) && (!data[0] || !data[0].isLedgerTrade)) {
+            setGlobalSignals((prev) => {
+              const currentExpandedId = expandedSignalIdRef.current;
+
+              // 1. If nothing is currently inspected, accept the incoming stream normally
+              if (!currentExpandedId) {
+                return data;
+              }
+
+              // 2. Active Inspection Protection: Never kick out or shift the opened record!
+              const expandedItem = prev.find((s) => s.id === currentExpandedId);
+              if (!expandedItem) {
+                return data;
+              }
+
+              const incomingMatch = data.find((s) => s.id === currentExpandedId);
+              if (incomingMatch) {
+                const incomingMap = new Map(data.map((s) => [s.id, s]));
+                return prev.map((p) => incomingMap.get(p.id) || p);
+              } else {
+                const result = [...prev];
+                const expIdx = result.findIndex((s) => s.id === currentExpandedId);
+                const availableIncoming = data.filter((s) => s.id !== currentExpandedId);
+                let incIdx = 0;
+
+                for (let i = 0; i < result.length; i++) {
+                  if (i === expIdx) continue;
+                  if (incIdx < availableIncoming.length) {
+                    result[i] = availableIncoming[incIdx];
+                    incIdx++;
+                  }
+                }
+                return result;
+              }
+            });
           }
         } catch (e) {
           console.error('WS parse error:', e);
@@ -195,27 +338,46 @@ export default function App() {
       if (ws) ws.close();
       clearTimeout(reconnectTimer);
     };
-  }, [currentView, userProfile?.userId]);
+  }, [userProfile?.userId]);
 
-  // 5. Start Trade Handler
+  // 5. Start Trade & Authenticate Session Handler (Instant 1-Click Execution)
   const handleStartTrade = async (targetUserId) => {
     if (!targetUserId) return;
     try {
-      const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-      const res = await fetch(`${protocol}//${window.location.host}/api/start-trade`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: targetUserId }),
-      });
-      const data = await res.json();
+      // Step 1: Immediately fetch user profile and their personal history
+      const profile = await fetchProfile(targetUserId);
+      if (!profile) {
+        showToast('Unable to authenticate client identifier. Please verify User ID.', 'error');
+        return;
+      }
 
-      if (data.success || res.status === 429) {
-        setIsLoginOpen(false);
-        setCurrentView('personal');
-        fetchProfile(targetUserId);
-        showToast(data.message, data.success ? 'success' : 'error');
+      // Step 2: Instant UI transition - Save session, close modal and show Personal Ledger
+      localStorage.setItem('karometa_user_id', targetUserId);
+      setIsLoginOpen(false);
+      setCurrentView('ledger');
+
+      // Step 3: Inform WebSocket of user identity without reconnecting
+      if (wsRef.current && wsRef.current.readyState === 1) {
+        wsRef.current.send(JSON.stringify({ type: 'IDENTIFY', userId: targetUserId }));
+      }
+
+      // Step 4: Handle 24h Auto-Trade start or active status gracefully
+      if (profile.canStartTrade) {
+        const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+        const res = await fetch(`${protocol}//${window.location.host}/api/start-trade`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: targetUserId }),
+        });
+        const data = await res.json();
+        await fetchProfile(targetUserId);
+        showToast(data.message || '24-Hour Auto-Trade session started!', data.success ? 'success' : 'info');
+      } else if (profile.sessionActive) {
+        showToast(`Authenticated: Active 24h trading conduit running for ${targetUserId}.`, 'success');
+      } else if (profile.isCooldownActive) {
+        showToast(`Authenticated: Daily harvest secured. Next session unlock timer active.`, 'info');
       } else {
-        showToast(data.message, 'error');
+        showToast(`Conduit verified for ${targetUserId}.`, 'success');
       }
     } catch (err) {
       console.error(err);
@@ -223,8 +385,10 @@ export default function App() {
     }
   };
 
-  // Signal Filtering & Search
-  const activeFeed = currentView === 'global' ? globalSignals : personalSignals;
+  // Signal Filtering & Search (Global Matrix vs Personal Ledger vs Execution Ledger)
+  const activeFeed = currentView === 'global'
+    ? globalSignals
+    : (userProfile ? personalSignals : ledgerSignals);
   const filteredSignals = activeFeed
     .filter((signal) => {
       if (selectedChain !== 'All' && signal.network?.toLowerCase() !== selectedChain.toLowerCase()) {
@@ -240,6 +404,16 @@ export default function App() {
       return true;
     })
     .sort((a, b) => {
+      // 1. When an item is actively inspected, strictly lock the visual sequence so rows don't shift
+      if (expandedSignalId && frozenIdsRef.current) {
+        const idxA = frozenIdsRef.current.indexOf(a.id);
+        const idxB = frozenIdsRef.current.indexOf(b.id);
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        if (idxA !== -1) return -1;
+        if (idxB !== -1) return 1;
+      }
+
+      // 2. Standard user-selected sorting
       if (sortBy === 'profit') {
         const profitA = a.profitAmount || parseFloat(a.calculation?.net?.replace(/[^0-9.-]+/g, '')) || 0;
         const profitB = b.profitAmount || parseFloat(b.calculation?.net?.replace(/[^0-9.-]+/g, '')) || 0;
@@ -275,6 +449,7 @@ export default function App() {
         onViewChange={(v) => setCurrentView(v)}
         onOpenLogin={() => setIsLoginOpen(true)}
         onStartTrade={handleStartTrade}
+        onLogout={handleLogout}
         isReadOnlyProfile={isReadOnlyProfile}
         wsConnected={wsConnected}
         isAdminRoute={isAdminMode}
@@ -292,8 +467,8 @@ export default function App() {
           {/* Next-Gen Harmonic Spectrum Signal Equalizer */}
           <SignalEqualizer />
 
-          {/* Personal Account View (if in Personal mode) */}
-          {currentView === 'personal' && (
+          {/* Personal Account View (only when in Ledger mode AND a user profile is logged in) */}
+          {(currentView === 'ledger' || currentView === 'personal') && userProfile && (
             <PersonalDashboard userProfile={userProfile} onStartTrade={handleStartTrade} />
           )}
 
@@ -307,17 +482,18 @@ export default function App() {
 
             {/* Chain Filters */}
             <div className="filter-chain-group">
-              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontFamily: 'var(--font-tech)', textTransform: 'uppercase', marginRight: '4px' }}>
+              <span className="control-bar-label">
                 Conduits:
               </span>
               {['All', 'Polygon', 'Ethereum', 'BNB', 'Arbitrum', 'Base'].map((chain) => (
                 <button
                   key={chain}
+                  type="button"
                   className={`chain-filter-btn ${selectedChain === chain ? 'active' : ''}`}
-                  onClick={() => setSelectedChain(chain)}
+                  onClick={() => handleChainChange(chain)}
                 >
                   <span className={`chain-pip ${chain.toLowerCase()}`} />
-                  {chain}
+                  <span>{chain}</span>
                 </button>
               ))}
             </div>
@@ -325,32 +501,28 @@ export default function App() {
             {/* Right Tools: Search & Layout Mode */}
             <div className="control-tools-right">
               {/* Sort selector */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>SORT:</span>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  style={{
-                    background: 'var(--bg-deep)',
-                    border: '1px solid var(--border-subtle)',
-                    color: '#FFFFFF',
-                    borderRadius: 'var(--radius-sm)',
-                    padding: '6px 10px',
-                    fontSize: '0.78rem',
-                    fontFamily: 'var(--font-display)',
-                    outline: 'none',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <option value="roi">Highest ROI</option>
-                  <option value="profit">Largest Yield ($)</option>
-                  <option value="recent">Latest Stream</option>
-                </select>
+              <div className="matrix-sort-wrapper">
+                <span className="control-bar-label">SORT:</span>
+                <div className="matrix-select-box">
+                  <select
+                    className="matrix-sort-select"
+                    value={sortBy}
+                    onChange={(e) => handleSortChange(e.target.value)}
+                    aria-label="Sort Conduits"
+                  >
+                    <option value="roi">Highest ROI</option>
+                    <option value="profit">Largest Yield ($)</option>
+                    <option value="recent">Latest Stream</option>
+                  </select>
+                  <svg className="select-dropdown-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </div>
               </div>
 
               {/* Search Box */}
               <div className="matrix-search">
-                <svg className="search-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg className="search-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="11" cy="11" r="8" />
                   <path d="M21 21l-4.35-4.35" />
                 </svg>
@@ -359,29 +531,44 @@ export default function App() {
                   placeholder="Filter pair or token..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  aria-label="Filter pair or token"
                 />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    className="search-clear-btn"
+                    onClick={() => setSearchQuery('')}
+                    title="Clear filter"
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
 
               {/* View Layout Toggle (Grid vs Terminal Table) */}
-              <div className="view-type-toggle">
+              <div className="view-type-toggle" role="group" aria-label="View Layout">
                 <button
+                  type="button"
                   className={`view-type-btn ${viewLayout === 'grid' ? 'active' : ''}`}
                   onClick={() => setViewLayout('grid')}
-                  title="Quantum Cards Grid"
+                  title="Quantum Cards Grid View"
+                  aria-label="Quantum Cards Grid View"
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="3" width="7" height="7" rx="1" />
-                    <rect x="14" y="3" width="7" height="7" rx="1" />
-                    <rect x="14" y="14" width="7" height="7" rx="1" />
-                    <rect x="3" y="14" width="7" height="7" rx="1" />
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                    <rect x="14" y="3" width="7" height="7" rx="1.5" />
+                    <rect x="14" y="14" width="7" height="7" rx="1.5" />
+                    <rect x="3" y="14" width="7" height="7" rx="1.5" />
                   </svg>
                 </button>
                 <button
+                  type="button"
                   className={`view-type-btn ${viewLayout === 'terminal' ? 'active' : ''}`}
                   onClick={() => setViewLayout('terminal')}
-                  title="High-Frequency Dense Table"
+                  title="High-Frequency Dense Table View"
+                  aria-label="High-Frequency Dense Table View"
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="3" y1="6" x2="21" y2="6" />
                     <line x1="3" y1="12" x2="21" y2="12" />
                     <line x1="3" y1="18" x2="21" y2="18" />
@@ -405,10 +592,16 @@ export default function App() {
             >
               <div style={{ fontSize: '2rem', marginBottom: '10px' }}>⚡</div>
               <div style={{ fontFamily: 'var(--font-tech)', fontSize: '1.1rem', color: '#FFFFFF', fontWeight: '700' }}>
-                Scanning High-Frequency Arbitrage Conduits...
+                {currentView === 'global'
+                  ? 'Scanning High-Frequency Arbitrage Conduits...'
+                  : (userProfile ? 'No Personal Trades Found' : 'Awaiting Executed Arbitrage Records...')}
               </div>
               <p style={{ fontSize: '0.84rem', marginTop: '6px', maxWidth: '420px', margin: '6px auto 0' }}>
-                Awaiting algorithmic spread cross-detection from Binance, Uniswap V3, Curve, and Balancer liquidity pools.
+                {currentView === 'global'
+                  ? 'Awaiting algorithmic spread cross-detection from Binance, Uniswap V3, Curve, and Balancer liquidity pools.'
+                  : (userProfile
+                      ? 'Trades executed in your active 24h arbitrage session will appear here in real-time.'
+                      : 'Live executed trades from decentralized AMM liquidity pools will appear here in real-time.')}
               </p>
             </div>
           ) : viewLayout === 'grid' ? (
@@ -419,7 +612,7 @@ export default function App() {
                   key={signal.id}
                   signal={signal}
                   isExpanded={expandedSignalId === signal.id}
-                  onToggle={() => setExpandedSignalId(expandedSignalId === signal.id ? null : signal.id)}
+                  onToggle={() => handleToggleExpand(signal.id)}
                 />
               ))}
             </div>
@@ -432,7 +625,7 @@ export default function App() {
               <span className="table-corner table-corner-bl" />
               <span className="table-corner table-corner-br" />
 
-              {/* Top Title Bar matching screenshot */}
+              {/* Top Title Bar */}
               <div className="terminal-card-topbar">
                 <div className="topbar-title-wrap">
                   <div className="topbar-icon-badge">
@@ -440,8 +633,15 @@ export default function App() {
                       <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
                     </svg>
                   </div>
-                  <h3 className="topbar-title">Current Running Conduits</h3>
-                  <span className="topbar-active-pill">{filteredSignals.length} Active</span>
+                  <h3 className="topbar-title">
+                    {currentView === 'global'
+                      ? 'Current Running Conduits'
+                      : (userProfile ? 'Personal Trade Ledger' : 'Live Execution Ledger')}
+                  </h3>
+                  <span className="topbar-active-pill">
+                    {filteredSignals.length}{' '}
+                    {currentView === 'global' ? 'Active' : 'Settled'}
+                  </span>
                 </div>
               </div>
 
@@ -461,7 +661,7 @@ export default function App() {
                     key={signal.id}
                     signal={signal}
                     isExpanded={expandedSignalId === signal.id}
-                    onToggle={() => setExpandedSignalId(expandedSignalId === signal.id ? null : signal.id)}
+                    onToggle={() => handleToggleExpand(signal.id)}
                   />
                 ))}
               </div>

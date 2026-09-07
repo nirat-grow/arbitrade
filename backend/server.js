@@ -69,12 +69,18 @@ app.post('/api/start-trade', async (req, res) => {
         if (!userId) return res.status(400).json({ success: false, message: 'User ID is required' });
 
         // 1. Check if user exists in api_submissions
-        const userCheck = await dbClient.query(
+        let userCheck = await dbClient.query(
             'SELECT * FROM api_submissions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
             [userId]
         );
         if (userCheck.rows.length === 0) {
-            return res.status(404).json({ success: false, message: 'User ID not found or no package purchased.' });
+            const insertRes = await dbClient.query(
+                `INSERT INTO api_submissions (user_id, package_order_no, package_name, amount, date_time, description)
+                 VALUES ($1, $2, 'Standard Node', 150.00, NOW(), 'Auto-provisioned conduit access')
+                 RETURNING *`,
+                [userId, `ORD-${Date.now()}`]
+            );
+            userCheck = insertRes;
         }
 
         const userPackage = userCheck.rows[0];
@@ -155,8 +161,16 @@ app.get('/api/user-profile/:userId', async (req, res) => {
         const { userId } = req.params;
         
         // 1. Get package info
-        const userCheck = await dbClient.query('SELECT amount FROM api_submissions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1', [userId]);
-        if (userCheck.rows.length === 0) return res.status(404).json({ success: false, message: 'User not found' });
+        let userCheck = await dbClient.query('SELECT amount FROM api_submissions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1', [userId]);
+        if (userCheck.rows.length === 0) {
+            const insertRes = await dbClient.query(
+                `INSERT INTO api_submissions (user_id, package_order_no, package_name, amount, date_time, description)
+                 VALUES ($1, $2, 'Standard Node', 150.00, NOW(), 'Auto-provisioned conduit access')
+                 RETURNING amount`,
+                [userId, `ORD-${Date.now()}`]
+            );
+            userCheck = insertRes;
+        }
         
         const balance = parseFloat(userCheck.rows[0].amount);
         
@@ -382,16 +396,18 @@ server.listen(8082, () => {
     console.log("Server starting on port 8082 (HTTP & WS)");
 });
 
-// Database connection
-const { Client } = pg;
-const dbClient = new Client({
-  // Using connection string from .env file
-  connectionString: process.env.DATABASE_URL
+// Database connection pool (supports concurrent async queries without blocking)
+const { Pool } = pg;
+const dbClient = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 25,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
 });
 
-dbClient.connect()
+dbClient.query('SELECT NOW()')
   .then(async () => {
-      console.log('✅ Connected to PostgreSQL database "bot" successfully!');
+      console.log('✅ Connected to PostgreSQL database "bot" pool successfully!');
       
       // Ensure admin table exists
       await dbClient.query(`
@@ -446,25 +462,31 @@ const connectedClients = new Set();
 
 function broadcastTrade(tradeData) {
     const details = typeof tradeData.trade_details === 'string' ? JSON.parse(tradeData.trade_details) : tradeData.trade_details;
+    const txHash = details.txHash || details.calculation?.txHash || ('0x' + Array.from({length: 64}, () => Math.floor(Math.random() * 16).toString(16)).join(''));
     const formattedTrade = {
         id: tradeData.id,
-        type: details.type,
-        network: details.network,
-        timeLabel: 'Active',
+        type: details.type || 'Arbitrage',
+        network: details.network || 'Ethereum',
+        timeLabel: 'Executed',
         routePath: details.routePath,
         calculation: details.calculation,
         hops: details.hops,
-        profitAmount: parseFloat(tradeData.profit_amount)
+        profitAmount: parseFloat(tradeData.profit_amount),
+        tradeAmount: parseFloat(tradeData.trade_amount),
+        txHash: txHash,
+        isLedgerTrade: true
+        // user_id is deliberately omitted to preserve complete anonymity
     };
 
-    // 1. Add to global feed array so it broadcasts normally to global users
+    // 1. Add to activeSignals for global scanner feed
     activeSignals.unshift(formattedTrade);
     if (activeSignals.length > 5) activeSignals.pop();
 
-    // 2. Instantly push to the specific user's personal feed
+    // 2. Push to all connected clients for the live Execution Ledger
     connectedClients.forEach(ws => {
-        if (ws.readyState === 1 && ws.userId === tradeData.user_id) {
-            ws.send(JSON.stringify([formattedTrade]));
+        if (ws.readyState === 1) {
+            const isPersonalMatch = ws.userId && ws.userId === tradeData.user_id;
+            ws.send(JSON.stringify([{ ...formattedTrade, isPersonalMatch }]));
         }
     });
 }
@@ -530,6 +552,7 @@ setInterval(async () => {
             const finalAmount = (startAmount + parseFloat(grossProfit)).toFixed(6);
             const roiPercent = ((newProfit / startAmount) * 100).toFixed(4) + '%';
 
+            const txHash = '0x' + Array.from({length: 64}, () => Math.floor(Math.random() * 16).toString(16)).join('');
             const dynamicCalculation = {
                 start: startAmount.toFixed(6),
                 gross: grossProfit,
@@ -537,7 +560,8 @@ setInterval(async () => {
                 final: finalAmount,
                 flashFee: flashFee,
                 net: newProfit.toFixed(6),
-                roi: roiPercent
+                roi: roiPercent,
+                txHash: txHash
             };
 
             const tradeDetails = JSON.stringify({
@@ -545,7 +569,8 @@ setInterval(async () => {
                 type: baseSignal.type,
                 routePath: baseSignal.route_path,
                 calculation: dynamicCalculation,
-                hops: baseSignal.hops
+                hops: baseSignal.hops,
+                txHash: txHash
             });
 
             const result = await dbClient.query(`
@@ -610,46 +635,67 @@ function getJitteredSignals() {
     });
 }
 
+function sendUserHistory(ws, userId) {
+    if (!userId || ws.readyState !== 1) return;
+    dbClient.query('SELECT * FROM trade_history WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50', [userId])
+        .then(historyCheck => {
+            const formattedHistory = historyCheck.rows.map(tradeData => {
+                const details = typeof tradeData.trade_details === 'string' ? JSON.parse(tradeData.trade_details) : tradeData.trade_details;
+                return {
+                    id: tradeData.id,
+                    type: details.type || 'Arbitrage',
+                    network: details.network || 'Ethereum',
+                    timeLabel: 'Executed',
+                    routePath: details.routePath,
+                    calculation: details.calculation,
+                    hops: details.hops,
+                    profitAmount: parseFloat(tradeData.profit_amount),
+                    tradeAmount: parseFloat(tradeData.trade_amount),
+                    txHash: details.txHash || details.calculation?.txHash,
+                    isHistory: true,
+                    isPersonalMatch: true
+                };
+            });
+            if (ws.readyState === 1 && formattedHistory.length > 0) {
+                ws.send(JSON.stringify(formattedHistory));
+            }
+        })
+        .catch(err => console.error("Error fetching WS history:", err));
+}
+
 wss.on('connection', (ws, req) => {
     // Parse userId from URL e.g. /ws?userId=user_123
     const url = new URL(req.url, `http://${req.headers.host}`);
     const userId = url.searchParams.get('userId');
     
-    ws.userId = userId;
+    ws.userId = userId || null;
     connectedClients.add(ws);
-    console.log(`Client connected. Mode: ${userId ? `Personal (${userId})` : 'Global'}`);
+    console.log(`Client connected. Mode: ${ws.userId ? `Personal (${ws.userId})` : 'Global'}`);
 
-    // Send initial jittered signals immediately if global
-    if (!userId && ws.readyState === 1 && activeSignals.length > 0) {
+    // Send initial jittered scanner signals immediately to client
+    if (ws.readyState === 1 && activeSignals.length > 0) {
         ws.send(JSON.stringify(getJitteredSignals()));
-    } else if (userId && ws.readyState === 1) {
-        // Instantly send their specific historical trades!
-        dbClient.query('SELECT * FROM trade_history WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50', [userId])
-            .then(historyCheck => {
-                const formattedHistory = historyCheck.rows.map(tradeData => {
-                    const details = typeof tradeData.trade_details === 'string' ? JSON.parse(tradeData.trade_details) : tradeData.trade_details;
-                    return {
-                        id: tradeData.id,
-                        type: details.type,
-                        network: details.network,
-                        timeLabel: 'Active',
-                        routePath: details.routePath,
-                        calculation: details.calculation,
-                        hops: details.hops,
-                        profitAmount: parseFloat(tradeData.profit_amount),
-                        isHistory: true // Flag to tell frontend not to double-count this profit
-                    };
-                });
-                if (ws.readyState === 1 && formattedHistory.length > 0) {
-                    ws.send(JSON.stringify(formattedHistory));
-                }
-            })
-            .catch(err => console.error("Error fetching WS history:", err));
     }
 
-    // Broadcast slightly jittered data every 2 seconds ONLY to global feed
+    if (ws.userId) {
+        sendUserHistory(ws, ws.userId);
+    }
+
+    // Support runtime identification message without reconnecting socket
+    ws.on('message', (message) => {
+        try {
+            const data = JSON.parse(message);
+            if (data.type === 'IDENTIFY' && data.userId) {
+                ws.userId = data.userId;
+                console.log(`Client identified via WS message: ${data.userId}`);
+                sendUserHistory(ws, data.userId);
+            }
+        } catch (e) {}
+    });
+
+    // Broadcast live scanner data to all connected clients every 2 seconds
     const interval = setInterval(() => {
-        if (!ws.userId && ws.readyState === 1 && activeSignals.length > 0) {
+        if (ws.readyState === 1 && activeSignals.length > 0) {
             ws.send(JSON.stringify(getJitteredSignals()));
         }
     }, 2000);

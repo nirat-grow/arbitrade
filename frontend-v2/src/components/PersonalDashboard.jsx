@@ -85,10 +85,10 @@ export const PersonalDashboard = ({ userProfile, onStartTrade }) => {
           </div>
 
           <h2 style={{ fontFamily: 'var(--font-tech)', fontSize: '1.75rem', fontWeight: '800', color: '#FFFFFF' }}>
-            Personal Execution Ledger
+            Private Capital Conduit
           </h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.86rem', marginTop: '4px' }}>
-            Dedicated autonomous order flow routed exclusively through your capital package.
+            Dedicated autonomous order flow routed exclusively through your allocated capital.
           </p>
 
           {/* Live Real-time Arbitrage Execution Stream (Internal Target Hidden) */}
@@ -164,8 +164,8 @@ export const PersonalDashboard = ({ userProfile, onStartTrade }) => {
               </div>
             ) : canLaunch ? (
               <button
-                className="nexus-btn nexus-btn-cyan"
-                style={{ width: '100%', fontSize: '0.8rem', padding: '8px 12px' }}
+                className="nexus-btn nexus-btn-gold"
+                style={{ width: '100%', fontSize: '0.8rem', padding: '10px 14px' }}
                 onClick={() => onStartTrade(userProfile.userId)}
               >
                 ▶ Launch 24h Session
