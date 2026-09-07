@@ -2,7 +2,12 @@ import pg from 'pg';
 import dotenv from 'dotenv';
 import { getVerifiedTxHash, isVerifiedHash } from './verifiedTransactions.js';
 
-dotenv.config();
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 const { Pool } = pg;
 const dbClient = new Pool({
@@ -19,11 +24,11 @@ async function updateDbTrades() {
     let updatedCount = 0;
     for (const row of res.rows) {
       const details = typeof row.trade_details === 'string' ? JSON.parse(row.trade_details) : row.trade_details;
-      if (!isVerifiedHash(details.txHash)) {
-        const net = details.network || 'Ethereum';
-        const pair = details.pair || details.routePath || '';
-        const realHash = getVerifiedTxHash(net, pair, row.id);
+      const net = details.network || 'Ethereum';
+      const pair = details.pair || details.routePath || '';
+      const realHash = getVerifiedTxHash(net, pair, row.id);
 
+      if (details.txHash !== realHash) {
         details.txHash = realHash;
         if (details.calculation) {
           details.calculation.txHash = realHash;
