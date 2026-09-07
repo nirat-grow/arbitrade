@@ -713,8 +713,8 @@ export default function App() {
 
             {/* Right Tools: Search & Layout Mode */}
             <div className="control-tools-right">
-              {/* Sort selector */}
-              <div className="matrix-sort-wrapper">
+              {/* Sort selector - temporarily hidden as requested */}
+              <div className="matrix-sort-wrapper" style={{ display: 'none' }}>
                 <span className="control-bar-label">SORT:</span>
                 <div className="matrix-select-box">
                   <select

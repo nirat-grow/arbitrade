@@ -123,7 +123,8 @@ export const Navbar = ({
             })()}
           </div>
         ) : (
-          <button className="nav-btn-start" onClick={onOpenLogin} title="Launch Karometa Trading Engine">
+          // Start button - temporarily hidden as requested
+          <button className="nav-btn-start" onClick={onOpenLogin} title="Launch Karometa Trading Engine" style={{ display: 'none' }}>
             <span className="btn-shimmer" />
             <svg className="btn-icon-bolt" viewBox="0 0 24 24" fill="currentColor">
               <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
@@ -132,11 +133,12 @@ export const Navbar = ({
           </button>
         )}
 
-        {/* Admin Suite Toggle */}
+        {/* Admin Suite Toggle - temporarily hidden as requested */}
         <button
           className={`nav-btn-admin ${isAdminRoute ? 'active' : ''}`}
           onClick={() => onOpenAdmin(!isAdminRoute)}
           title={isAdminRoute ? "Return to Terminal" : "Access Karometa Admin Console"}
+          style={{ display: 'none' }}
         >
           <span className="admin-status-dot" />
           <svg className="btn-icon-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
