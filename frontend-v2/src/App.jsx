@@ -243,6 +243,30 @@ export default function App() {
     }
   }, [currentView]);
 
+  // 3b. Fetch Live Scanner Signals via REST (Instant 0ms Global Matrix render)
+  const fetchScannerSignals = async () => {
+    try {
+      const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+      const res = await fetch(`${protocol}//${window.location.host}/api/scanner-signals`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.signals) && data.signals.length > 0) {
+        setGlobalSignals(data.signals);
+      }
+    } catch (err) {
+      console.error('Error fetching scanner signals:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchScannerSignals();
+  }, []);
+
+  useEffect(() => {
+    if (currentView === 'global') {
+      fetchScannerSignals();
+    }
+  }, [currentView]);
+
   // 4. Detect URL Parameters (?userId=...) or saved user in localStorage
   useEffect(() => {
     if (window.location.pathname === '/admin') {
@@ -291,11 +315,11 @@ export default function App() {
 
       ws.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data);
+          const payload = JSON.parse(event.data);
 
-          // Handle Session Complete Target Achieved Event
-          if (Array.isArray(data) && data.length > 0 && data[0].type === 'SESSION_COMPLETE') {
-            const ev = data[0];
+          // 1. Session Complete Target Achieved Event
+          if (payload.type === 'SESSION_COMPLETE' || (Array.isArray(payload) && payload[0]?.type === 'SESSION_COMPLETE')) {
+            const ev = payload.type === 'SESSION_COMPLETE' ? payload : payload[0];
             setUserProfile((prev) =>
               prev
                 ? {
@@ -313,12 +337,85 @@ export default function App() {
             return;
           }
 
-          // Append incoming executed trades to all users' Execution Ledger in real-time
-          const incomingTrades = Array.isArray(data) ? data : [data];
-          const executedTrades = incomingTrades.filter(
-            (d) => d.calculation && (d.profitAmount !== undefined || d.isLedgerTrade)
-          );
+          // 2. Personal User History (STRICTLY goes to personalSignals, NEVER touches globalSignals!)
+          if (payload.type === 'USER_HISTORY' && Array.isArray(payload.trades)) {
+            setPersonalSignals(payload.trades);
+            return;
+          }
 
+          // 3. Live Executed Trade Event (Typed message)
+          if (payload.type === 'LIVE_TRADE' && payload.trade) {
+            const trade = payload.trade;
+            setTotalSettledCount((prev) => prev + 1);
+            setLedgerSignals((prev) => {
+              if (prev.some((p) => p.id === trade.id)) return prev;
+              return [trade, ...prev];
+            });
+
+            if (userProfile && trade.isPersonalMatch) {
+              setPersonalSignals((prev) => {
+                if (prev.some((p) => p.id === trade.id)) return prev;
+                return [trade, ...prev];
+              });
+              const addedProfit = trade.profitAmount || 0;
+              if (addedProfit > 0) {
+                setUserProfile((prev) => (prev ? { ...prev, currentProfit: prev.currentProfit + addedProfit } : prev));
+              }
+            }
+            return;
+          }
+
+          // 4. Scanner Feed Event (STRICTLY updates globalSignals!)
+          let scannerData = null;
+          if (payload.type === 'SCANNER_FEED' && Array.isArray(payload.signals)) {
+            scannerData = payload.signals;
+          } else if (
+            Array.isArray(payload) &&
+            payload.length > 0 &&
+            !payload[0].isLedgerTrade &&
+            !payload[0].isPersonalMatch &&
+            payload[0].timeLabel !== 'Executed'
+          ) {
+            scannerData = payload;
+          }
+
+          if (scannerData && scannerData.length > 0) {
+            setGlobalSignals((prev) => {
+              const currentExpandedId = expandedSignalIdRef.current;
+              if (!currentExpandedId) {
+                return scannerData;
+              }
+              const expandedItem = prev.find((s) => s.id === currentExpandedId);
+              if (!expandedItem) {
+                return scannerData;
+              }
+              const incomingMatch = scannerData.find((s) => s.id === currentExpandedId);
+              if (incomingMatch) {
+                const incomingMap = new Map(scannerData.map((s) => [s.id, s]));
+                return prev.map((p) => incomingMap.get(p.id) || p);
+              } else {
+                const result = [...prev];
+                const expIdx = result.findIndex((s) => s.id === currentExpandedId);
+                const availableIncoming = scannerData.filter((s) => s.id !== currentExpandedId);
+                let incIdx = 0;
+                for (let i = 0; i < result.length; i++) {
+                  if (i === expIdx) continue;
+                  if (incIdx < availableIncoming.length) {
+                    result[i] = availableIncoming[incIdx];
+                    incIdx++;
+                  }
+                }
+                return result;
+              }
+            });
+            return;
+          }
+
+          // 5. Fallback for Legacy Raw Arrays
+          const incomingTrades = Array.isArray(payload) ? payload : [payload];
+          const executedTrades = incomingTrades.filter(
+            (d) => d && d.calculation && (d.profitAmount !== undefined || d.isLedgerTrade || d.timeLabel === 'Executed')
+          );
           if (executedTrades.length > 0) {
             setTotalSettledCount((prev) => prev + executedTrades.length);
             setLedgerSignals((prev) => {
@@ -327,7 +424,6 @@ export default function App() {
               return [...unique, ...prev];
             });
 
-            // If current logged-in user owns any of these trades, append to personalSignals and update profile
             if (userProfile) {
               const myTrades = executedTrades.filter((d) => d.isPersonalMatch);
               if (myTrades.length > 0) {
@@ -344,44 +440,6 @@ export default function App() {
                 }
               }
             }
-          }
-
-          // Update Global Scanner signals if payload is scanner array
-          if (Array.isArray(data) && (!data[0] || !data[0].isLedgerTrade)) {
-            setGlobalSignals((prev) => {
-              const currentExpandedId = expandedSignalIdRef.current;
-
-              // 1. If nothing is currently inspected, accept the incoming stream normally
-              if (!currentExpandedId) {
-                return data;
-              }
-
-              // 2. Active Inspection Protection: Never kick out or shift the opened record!
-              const expandedItem = prev.find((s) => s.id === currentExpandedId);
-              if (!expandedItem) {
-                return data;
-              }
-
-              const incomingMatch = data.find((s) => s.id === currentExpandedId);
-              if (incomingMatch) {
-                const incomingMap = new Map(data.map((s) => [s.id, s]));
-                return prev.map((p) => incomingMap.get(p.id) || p);
-              } else {
-                const result = [...prev];
-                const expIdx = result.findIndex((s) => s.id === currentExpandedId);
-                const availableIncoming = data.filter((s) => s.id !== currentExpandedId);
-                let incIdx = 0;
-
-                for (let i = 0; i < result.length; i++) {
-                  if (i === expIdx) continue;
-                  if (incIdx < availableIncoming.length) {
-                    result[i] = availableIncoming[incIdx];
-                    incIdx++;
-                  }
-                }
-                return result;
-              }
-            });
           }
         } catch (e) {
           console.error('WS parse error:', e);

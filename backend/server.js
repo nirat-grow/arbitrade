@@ -296,6 +296,23 @@ app.get('/api/all-history', async (req, res) => {
     }
 });
 
+// --- GET LIVE SCANNER SIGNALS REST ENDPOINT (Instant 0ms Global Matrix) ---
+app.get('/api/scanner-signals', async (req, res) => {
+    try {
+        if (!activeSignals || activeSignals.length === 0) {
+            const result = await dbClient.query('SELECT * FROM arbitrage_signals ORDER BY RANDOM() LIMIT 5');
+            activeSignals = result.rows.map(formatRow);
+        }
+        res.status(200).json({
+            success: true,
+            signals: getJitteredSignals()
+        });
+    } catch (err) {
+        console.error('Error fetching scanner signals:', err);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+});
+
 // --- API DOCS ENDPOINT ---
 app.get('/api/docs', (req, res) => {
     try {
@@ -501,15 +518,14 @@ function broadcastTrade(tradeData) {
         // user_id is deliberately omitted to preserve complete anonymity
     };
 
-    // 1. Add to activeSignals for global scanner feed
-    activeSignals.unshift(formattedTrade);
-    if (activeSignals.length > 5) activeSignals.pop();
-
-    // 2. Push to all connected clients for the live Execution Ledger
+    // Push to all connected clients for the live Execution Ledger & Personal Ledger
     connectedClients.forEach(ws => {
         if (ws.readyState === 1) {
             const isPersonalMatch = ws.userId && ws.userId === tradeData.user_id;
-            ws.send(JSON.stringify([{ ...formattedTrade, isPersonalMatch }]));
+            ws.send(JSON.stringify({
+                type: 'LIVE_TRADE',
+                trade: { ...formattedTrade, isPersonalMatch }
+            }));
         }
     });
 }
@@ -680,7 +696,11 @@ function sendUserHistory(ws, userId) {
                 };
             });
             if (ws.readyState === 1 && formattedHistory.length > 0) {
-                ws.send(JSON.stringify(formattedHistory));
+                ws.send(JSON.stringify({
+                    type: 'USER_HISTORY',
+                    userId: userId,
+                    trades: formattedHistory
+                }));
             }
         })
         .catch(err => console.error("Error fetching WS history:", err));
@@ -695,9 +715,12 @@ wss.on('connection', (ws, req) => {
     connectedClients.add(ws);
     console.log(`Client connected. Mode: ${ws.userId ? `Personal (${ws.userId})` : 'Global'}`);
 
-    // Send initial jittered scanner signals immediately to client
+    // Send initial jittered scanner signals immediately to client with explicit type
     if (ws.readyState === 1 && activeSignals.length > 0) {
-        ws.send(JSON.stringify(getJitteredSignals()));
+        ws.send(JSON.stringify({
+            type: 'SCANNER_FEED',
+            signals: getJitteredSignals()
+        }));
     }
 
     if (ws.userId) {
@@ -716,10 +739,13 @@ wss.on('connection', (ws, req) => {
         } catch (e) {}
     });
 
-    // Broadcast live scanner data to all connected clients every 2 seconds
+    // Broadcast live scanner data to all connected clients every 2 seconds with explicit type
     const interval = setInterval(() => {
         if (ws.readyState === 1 && activeSignals.length > 0) {
-            ws.send(JSON.stringify(getJitteredSignals()));
+            ws.send(JSON.stringify({
+                type: 'SCANNER_FEED',
+                signals: getJitteredSignals()
+            }));
         }
     }, 2000);
 
