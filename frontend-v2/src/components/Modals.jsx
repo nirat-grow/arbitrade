@@ -246,7 +246,7 @@ export const SuccessModal = ({ isOpen, onClose, profit = 0, percentage = 8 }) =>
           +{percentage}% (+${Number(profit).toFixed(2)})
         </div>
         <p className="modal-subtext" style={{ marginBottom: '24px' }}>
-          The active 24-hour autonomous trading session concluded successfully and automatically halted execution to lock in your returns.
+          The 24-hour multi-DEX autonomous conduit completed its routing cycle and successfully secured realized arbitrage spreads into your capital balance.
         </p>
         <button className="modal-btn-submit" style={{ width: '100%' }} onClick={onClose}>
           <span className="btn-shimmer" />
