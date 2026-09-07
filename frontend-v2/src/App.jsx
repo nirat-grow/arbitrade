@@ -495,7 +495,8 @@ export default function App() {
         });
         const data = await res.json();
         await fetchProfile(targetUserId);
-        showToast(data.message || '24-Hour Auto-Trade session started!', data.success ? 'success' : 'info');
+        const cleanMsg = (data.message || '').replace(/Target:\s*\+\d+(\.\d+)?%?/gi, '').trim();
+        showToast(cleanMsg || '24-Hour Autonomous Arbitrage Conduit Activated.', data.success ? 'success' : 'info');
       } else if (profile.sessionActive) {
         showToast(`Authenticated: Active 24h trading conduit running for ${targetUserId}.`, 'success');
       } else if (profile.isCooldownActive) {

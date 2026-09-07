@@ -145,9 +145,7 @@ app.post('/api/start-trade', async (req, res) => {
 
         res.status(200).json({ 
             success: true, 
-            message: `24-Hour Auto-Trade started! Target: +${targetPercentage}%`,
-            targetPercentage,
-            targetProfit
+            message: '24-Hour Autonomous Arbitrage Conduit Activated.'
         });
     } catch (err) {
         console.error('Error starting trade:', err);
