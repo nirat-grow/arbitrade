@@ -14,7 +14,7 @@ const NETWORK_COLORS = {
 export const SignalCard = React.memo(({ signal, isExpanded, onToggle }) => {
   if (!signal || !signal.calculation) return null;
 
-  const txHash = signal.txHash || getDeterministicTxHash(signal);
+  const txHash = getDeterministicTxHash(signal);
   const netDisplay = formatNetProfit(signal.calculation.net, signal.profitAmount);
   const isProfit = !netDisplay.startsWith('-');
   const roiDisplay = formatROI(signal.calculation.roi);

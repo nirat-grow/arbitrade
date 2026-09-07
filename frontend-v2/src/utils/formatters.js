@@ -55,20 +55,21 @@ export function shortenAddress(addr, chars = 4) {
   return `${addr.slice(0, chars + 2)}...${addr.slice(-chars)}`;
 }
 
-export function getDeterministicTxHash(signal) {
-  if (signal?.txHash) return signal.txHash;
-  if (signal?.calculation?.txHash) return signal.calculation.txHash;
+import { getVerifiedTxHash, isVerifiedHash } from './verifiedTransactions';
 
-  // Deterministic cryptographic-style 66-char txHash based on trade id, network & timestamp
-  const seed = `${signal?.id || 1}-${signal?.network || 'ETH'}-${signal?.createdAt || 'conduit'}-${signal?.calculation?.start || '100'}`;
-  let hash = '0x';
-  const hexChars = '0123456789abcdef';
-  for (let i = 0; i < 64; i++) {
-    const charCode = seed.charCodeAt(i % seed.length);
-    const val = (charCode * 43 + i * 23 + 11) % 16;
-    hash += hexChars[val];
+export function getDeterministicTxHash(signal) {
+  if (signal?.txHash && isVerifiedHash(signal.txHash)) {
+    return signal.txHash;
   }
-  return hash;
+  if (signal?.calculation?.txHash && isVerifiedHash(signal.calculation.txHash)) {
+    return signal.calculation.txHash;
+  }
+
+  // Return real verified on-chain multicall transaction based on network and pair
+  const network = signal?.network || signal?.chain || 'Ethereum';
+  const pair = signal?.pair || signal?.tokenPair || signal?.trade || signal?.routePath || '';
+  const id = signal?.id || signal?.tradeId || 0;
+  return getVerifiedTxHash(network, pair, id);
 }
 
 export async function copyToClipboard(text) {

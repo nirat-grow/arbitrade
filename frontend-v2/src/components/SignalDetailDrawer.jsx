@@ -89,7 +89,7 @@ export const SignalDetailDrawer = React.memo(({ data, isTable = false }) => {
   if (!data?.calculation) return null;
 
   const [copiedTx, setCopiedTx] = useState(false);
-  const txHash = data.txHash || getDeterministicTxHash(data);
+  const txHash = getDeterministicTxHash(data);
   const explorerTxUrl = data.network && EXPLORER_TX_URLS[data.network] ? EXPLORER_TX_URLS[data.network] + txHash : null;
 
   const handleCopyTx = async (e) => {

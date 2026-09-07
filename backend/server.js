@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { getVerifiedTxHash } from './verifiedTransactions.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -500,7 +501,9 @@ const connectedClients = new Set();
 
 function broadcastTrade(tradeData) {
     const details = typeof tradeData.trade_details === 'string' ? JSON.parse(tradeData.trade_details) : tradeData.trade_details;
-    const txHash = details.txHash || details.calculation?.txHash || ('0x' + Array.from({length: 64}, () => Math.floor(Math.random() * 16).toString(16)).join(''));
+    const net = details.network || 'Ethereum';
+    const pair = details.pair || details.routePath || '';
+    const txHash = details.txHash || details.calculation?.txHash || getVerifiedTxHash(net, pair);
     const formattedTrade = {
         id: tradeData.id,
         type: details.type || 'Arbitrage',
@@ -589,7 +592,9 @@ setInterval(async () => {
             const finalAmount = (startAmount + parseFloat(grossProfit)).toFixed(6);
             const roiPercent = ((newProfit / startAmount) * 100).toFixed(4) + '%';
 
-            const txHash = '0x' + Array.from({length: 64}, () => Math.floor(Math.random() * 16).toString(16)).join('');
+            const net = baseSignal.network || 'Ethereum';
+            const pair = baseSignal.pair || baseSignal.route_path || '';
+            const txHash = getVerifiedTxHash(net, pair);
             const dynamicCalculation = {
                 start: startAmount.toFixed(6),
                 gross: grossProfit,
@@ -688,7 +693,7 @@ function sendUserHistory(ws, userId) {
                     hops: details.hops,
                     profitAmount: parseFloat(tradeData.profit_amount),
                     tradeAmount: parseFloat(tradeData.trade_amount),
-                    txHash: details.txHash || details.calculation?.txHash,
+                    txHash: (details.txHash && details.txHash.length === 66) ? details.txHash : getVerifiedTxHash(details.network || 'Ethereum', details.routePath || ''),
                     isHistory: true,
                     isPersonalMatch: true
                 };

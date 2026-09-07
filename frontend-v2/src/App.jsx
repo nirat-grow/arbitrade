@@ -7,6 +7,7 @@ import SignalRow from './components/SignalRow';
 import PersonalDashboard from './components/PersonalDashboard';
 import AdminPortal from './components/AdminPortal';
 import { LoginModal, SuccessModal, Toast } from './components/Modals';
+import { getVerifiedTxHash, isVerifiedHash } from './utils/verifiedTransactions';
 
 export default function App() {
   // Navigation & Route states
@@ -19,7 +20,7 @@ export default function App() {
   const [globalSignals, setGlobalSignals] = useState([]);
   const [ledgerSignals, setLedgerSignals] = useState(() => {
     try {
-      const cached = localStorage.getItem('karometa_cached_ledger');
+      const cached = localStorage.getItem('karometa_cached_ledger_v2');
       return cached ? JSON.parse(cached) : [];
     } catch (e) {
       return [];
@@ -142,7 +143,7 @@ export default function App() {
               profitAmount: parseFloat(t.profit_amount),
               tradeAmount: parseFloat(t.trade_amount),
               createdAt: t.created_at,
-              txHash: d.txHash || d.calculation?.txHash,
+              txHash: isVerifiedHash(d.txHash) ? d.txHash : getVerifiedTxHash(d.network || 'Ethereum', d.routePath || '', t.id),
             };
           });
           setPersonalSignals(formatted);
@@ -199,14 +200,14 @@ export default function App() {
             profitAmount: parseFloat(t.profit_amount),
             tradeAmount: parseFloat(t.trade_amount),
             createdAt: t.created_at,
-            txHash: d.txHash || d.calculation?.txHash,
+            txHash: isVerifiedHash(d.txHash) ? d.txHash : getVerifiedTxHash(d.network || 'Ethereum', d.routePath || '', t.id),
           };
         });
 
         // Cache first 50 records for instant 0ms render on next page load
         if (!isAppend && formatted.length > 0) {
           try {
-            localStorage.setItem('karometa_cached_ledger', JSON.stringify(formatted.slice(0, 50)));
+            localStorage.setItem('karometa_cached_ledger_v2', JSON.stringify(formatted.slice(0, 50)));
           } catch (e) {}
         }
 
@@ -339,13 +340,21 @@ export default function App() {
 
           // 2. Personal User History (STRICTLY goes to personalSignals, NEVER touches globalSignals!)
           if (payload.type === 'USER_HISTORY' && Array.isArray(payload.trades)) {
-            setPersonalSignals(payload.trades);
+            const sanitized = payload.trades.map(tr => ({
+              ...tr,
+              txHash: isVerifiedHash(tr.txHash) ? tr.txHash : getVerifiedTxHash(tr.network || 'Ethereum', tr.routePath || '', tr.id)
+            }));
+            setPersonalSignals(sanitized);
             return;
           }
 
           // 3. Live Executed Trade Event (Typed message)
           if (payload.type === 'LIVE_TRADE' && payload.trade) {
-            const trade = payload.trade;
+            const rawTrade = payload.trade;
+            const trade = {
+              ...rawTrade,
+              txHash: isVerifiedHash(rawTrade.txHash) ? rawTrade.txHash : getVerifiedTxHash(rawTrade.network || 'Ethereum', rawTrade.routePath || '', rawTrade.id)
+            };
             setTotalSettledCount((prev) => prev + 1);
             setLedgerSignals((prev) => {
               if (prev.some((p) => p.id === trade.id)) return prev;
