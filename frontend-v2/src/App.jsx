@@ -437,7 +437,7 @@ export default function App() {
         });
         const data = await res.json();
         await fetchProfile(targetUserId);
-        showToast(data.message || '24-Hour Arbitrage Conduit Activated! Algorithmic multi-DEX execution live.', data.success ? 'success' : 'info');
+        showToast(data.message || '24-Hour Auto-Trade session started!', data.success ? 'success' : 'info');
       } else if (profile.sessionActive) {
         showToast(`Authenticated: Active 24h trading conduit running for ${targetUserId}.`, 'success');
       } else if (profile.isCooldownActive) {

@@ -145,7 +145,7 @@ app.post('/api/start-trade', async (req, res) => {
 
         res.status(200).json({ 
             success: true, 
-            message: '24-Hour Arbitrage Conduit Activated! Algorithmic multi-DEX execution live.',
+            message: `24-Hour Auto-Trade started! Target: +${targetPercentage}%`,
             targetPercentage,
             targetProfit
         });
