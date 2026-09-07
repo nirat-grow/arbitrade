@@ -17,7 +17,31 @@ export default function App() {
 
   // Data states
   const [globalSignals, setGlobalSignals] = useState([]);
-  const [ledgerSignals, setLedgerSignals] = useState([]);
+  const [ledgerSignals, setLedgerSignals] = useState(() => {
+    try {
+      const cached = localStorage.getItem('karometa_cached_ledger');
+      return cached ? JSON.parse(cached) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [totalSettledCount, setTotalSettledCount] = useState(() => {
+    try {
+      const cached = localStorage.getItem('karometa_cached_total');
+      return cached ? parseInt(cached, 10) : 0;
+    } catch (e) {
+      return 0;
+    }
+  });
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMoreTrades, setHasMoreTrades] = useState(true);
+  const [isFetchingInitialLedger, setIsFetchingInitialLedger] = useState(() => {
+    try {
+      return !localStorage.getItem('karometa_cached_ledger');
+    } catch (e) {
+      return true;
+    }
+  });
   const [personalSignals, setPersonalSignals] = useState([]);
   const [userProfile, setUserProfile] = useState(null);
   const [adminStats, setAdminStats] = useState(null);
@@ -27,7 +51,14 @@ export default function App() {
   const expandedSignalIdRef = useRef(null);
   const frozenIdsRef = useRef(null);
   const filteredSignalsRef = useRef([]);
+  const ledgerSignalsRef = useRef([]);
+  const isLoadingMoreRef = useRef(false);
+  const hasMoreTradesRef = useRef(true);
   const wsRef = useRef(null);
+
+  ledgerSignalsRef.current = ledgerSignals;
+  isLoadingMoreRef.current = isLoadingMore;
+  hasMoreTradesRef.current = hasMoreTrades;
 
   const handleToggleExpand = useCallback((id) => {
     setExpandedSignalId((prev) => {
@@ -138,14 +169,24 @@ export default function App() {
     showToast('Disconnected from personal account session.', 'info');
   };
 
-  // 3. Fetch All Users' Executed Trades (Completely Anonymous / No User ID Exposure)
-  const fetchAllHistoryTrades = async () => {
+  // 3. Fetch Executed Trades in 500-record chunks for maximum network speed
+  const fetchAllHistoryTrades = async (offset = 0, isAppend = false) => {
+    if (isAppend && (isLoadingMoreRef.current || !hasMoreTradesRef.current)) return;
     try {
+      if (isAppend) setIsLoadingMore(true);
+      else if (!ledgerSignalsRef.current.length) setIsFetchingInitialLedger(true);
+
       const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-      const res = await fetch(`${protocol}//${window.location.host}/api/all-history`);
+      const res = await fetch(`${protocol}//${window.location.host}/api/all-history?limit=500&offset=${offset}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.trades)) {
-        const formatted = data.trades.slice(0, 100).map((t) => {
+        if (data.totalTrades !== undefined) {
+          setTotalSettledCount(data.totalTrades);
+          try {
+            localStorage.setItem('karometa_cached_total', data.totalTrades.toString());
+          } catch (e) {}
+        }
+        const formatted = data.trades.map((t) => {
           const d = typeof t.trade_details === 'string' ? JSON.parse(t.trade_details) : t.trade_details;
           return {
             id: t.id,
@@ -159,23 +200,46 @@ export default function App() {
             tradeAmount: parseFloat(t.trade_amount),
             createdAt: t.created_at,
             txHash: d.txHash || d.calculation?.txHash,
-            // User identity is strictly excluded to preserve complete privacy
           };
         });
-        setLedgerSignals(formatted);
+
+        // Cache first 50 records for instant 0ms render on next page load
+        if (!isAppend && formatted.length > 0) {
+          try {
+            localStorage.setItem('karometa_cached_ledger', JSON.stringify(formatted.slice(0, 50)));
+          } catch (e) {}
+        }
+
+        setLedgerSignals((prev) => {
+          if (isAppend) {
+            const existingIds = new Set(prev.map((p) => p.id));
+            const newItems = formatted.filter((item) => !existingIds.has(item.id));
+            return [...prev, ...newItems];
+          }
+          return formatted;
+        });
+
+        if (data.trades.length < 500) {
+          setHasMoreTrades(false);
+        } else {
+          setHasMoreTrades(true);
+        }
       }
     } catch (err) {
-      console.error('Error fetching all history trades:', err);
+      console.error('Error fetching history trades:', err);
+    } finally {
+      if (isAppend) setIsLoadingMore(false);
+      setIsFetchingInitialLedger(false);
     }
   };
 
   useEffect(() => {
-    fetchAllHistoryTrades();
+    fetchAllHistoryTrades(0, false);
   }, []);
 
   useEffect(() => {
     if (currentView === 'ledger' || currentView === 'personal') {
-      fetchAllHistoryTrades();
+      fetchAllHistoryTrades(0, false);
     }
   }, [currentView]);
 
@@ -256,10 +320,11 @@ export default function App() {
           );
 
           if (executedTrades.length > 0) {
+            setTotalSettledCount((prev) => prev + executedTrades.length);
             setLedgerSignals((prev) => {
               const unique = executedTrades.filter((item) => !prev.some((p) => p.id === item.id));
               if (unique.length === 0) return prev;
-              return [...unique, ...prev].slice(0, 100);
+              return [...unique, ...prev];
             });
 
             // If current logged-in user owns any of these trades, append to personalSignals and update profile
@@ -433,6 +498,89 @@ export default function App() {
 
   filteredSignalsRef.current = filteredSignals;
 
+  // Gmail-Style Pagination State & Calculations (50 items per page)
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 50;
+  const tableContainerRef = useRef(null);
+
+  // Auto-reset page to 1 whenever view, network filter, search, or sort changes
+  useEffect(() => {
+    setCurrentPage(1);
+    setExpandedSignalId(null);
+  }, [currentView, selectedChain, searchQuery, sortBy]);
+
+  const isDefaultLedgerView = currentView === 'ledger' && selectedChain === 'All' && !searchQuery.trim();
+  const totalCount = isDefaultLedgerView
+    ? Math.max(totalSettledCount, filteredSignals.length)
+    : filteredSignals.length;
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = totalCount === 0 ? 0 : (safeCurrentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalCount);
+
+  const displaySignals = useMemo(() => {
+    if (currentView === 'global') return filteredSignals;
+    return filteredSignals.slice(startIndex, endIndex);
+  }, [currentView, filteredSignals, startIndex, endIndex]);
+
+  const handlePageChange = useCallback((newPage) => {
+    setCurrentPage(newPage);
+    setExpandedSignalId(null);
+    if (tableContainerRef.current) {
+      tableContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // Lazy load next 500 chunk when user approaches the end of currently loaded records
+    if (currentView === 'ledger') {
+      const neededRecords = newPage * pageSize;
+      const loadedCount = ledgerSignalsRef.current.length;
+      if (neededRecords >= loadedCount - 100 && hasMoreTradesRef.current && !isLoadingMoreRef.current) {
+        fetchAllHistoryTrades(loadedCount, true);
+      }
+    }
+  }, [currentView, pageSize]);
+
+  const renderPaginationWidget = (isBottom = false) => {
+    if (currentView === 'global' || totalCount === 0) return null;
+    return (
+      <div className={`gmail-pagination ${isBottom ? 'pagination-bottom' : ''}`}>
+        <span className="pagination-range-text">
+          <span className="range-highlight">{startIndex + 1}–{endIndex}</span>
+          <span className="range-sep">of</span>
+          <span className="range-total">{totalCount.toLocaleString()}</span>
+          {isLoadingMore && <span className="pagination-loading-pulse" title="Fetching next records...">●</span>}
+        </span>
+        <div className="pagination-arrows-group">
+          <button
+            type="button"
+            className="pagination-arrow-btn"
+            onClick={() => handlePageChange(Math.max(1, safeCurrentPage - 1))}
+            disabled={safeCurrentPage <= 1}
+            title="Previous 50 records"
+            aria-label="Previous page"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="pagination-arrow-btn"
+            onClick={() => handlePageChange(Math.min(totalPages, safeCurrentPage + 1))}
+            disabled={safeCurrentPage >= totalPages}
+            title="Next 50 records"
+            aria-label="Next page"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="nexus-app">
       {/* Background Matrix Grid Overlay */}
@@ -586,45 +734,97 @@ export default function App() {
 
           {/* Signals Stream Display */}
           {filteredSignals.length === 0 ? (
-            <div
-              style={{
-                textAlign: 'center',
-                padding: '60px 20px',
-                background: 'var(--bg-glass)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 'var(--radius-xl)',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              <div style={{ fontSize: '2rem', marginBottom: '10px' }}>⚡</div>
-              <div style={{ fontFamily: 'var(--font-tech)', fontSize: '1.1rem', color: '#FFFFFF', fontWeight: '700' }}>
-                {currentView === 'global'
-                  ? 'Scanning High-Frequency Arbitrage Conduits...'
-                  : (userProfile ? 'No Personal Trades Found' : 'Awaiting Executed Arbitrage Records...')}
+            isFetchingInitialLedger && currentView === 'ledger' ? (
+              /* High-End Obsidian Shimmer Skeleton while initially loading first time */
+              <div className="terminal-table-container">
+                <span className="table-corner table-corner-tl" />
+                <span className="table-corner table-corner-tr" />
+                <span className="table-corner table-corner-bl" />
+                <span className="table-corner table-corner-br" />
+                <div className="terminal-card-topbar">
+                  <div className="topbar-title-wrap">
+                    <div className="topbar-icon-badge">
+                      <svg className="topbar-icon-bolt" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                      </svg>
+                    </div>
+                    <h3 className="topbar-title">Live Execution Ledger</h3>
+                    <span className="topbar-active-pill">Syncing Ledger...</span>
+                  </div>
+                </div>
+                <div className="terminal-header-row">
+                  <div className="header-cell">Conduit</div>
+                  <div className="header-cell">Execution Route</div>
+                  <div className="header-cell">Latency</div>
+                  <div className="header-cell">Net Yield ($)</div>
+                  <div className="header-cell">Est. ROI</div>
+                  <div className="header-cell" style={{ textAlign: 'right', justifyContent: 'flex-end' }}>Inspect</div>
+                </div>
+                <div className="terminal-skeleton-table">
+                  {[1, 2, 3, 4, 5, 6, 7].map((idx) => (
+                    <div key={idx} className="terminal-skeleton-row" />
+                  ))}
+                </div>
               </div>
-              <p style={{ fontSize: '0.84rem', marginTop: '6px', maxWidth: '420px', margin: '6px auto 0' }}>
-                {currentView === 'global'
-                  ? 'Awaiting algorithmic spread cross-detection from Binance, Uniswap V3, Curve, and Balancer liquidity pools.'
-                  : (userProfile
-                      ? 'Trades executed in your active 24h arbitrage session will appear here in real-time.'
-                      : 'Live executed trades from decentralized AMM liquidity pools will appear here in real-time.')}
-              </p>
-            </div>
+            ) : (
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: '60px 20px',
+                  background: 'var(--bg-glass)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-xl)',
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                <div style={{ fontSize: '2rem', marginBottom: '10px' }}>⚡</div>
+                <div style={{ fontFamily: 'var(--font-tech)', fontSize: '1.1rem', color: '#FFFFFF', fontWeight: '700' }}>
+                  {currentView === 'global'
+                    ? 'Scanning High-Frequency Arbitrage Conduits...'
+                    : (userProfile ? 'No Personal Trades Found' : 'No Matching Arbitrage Records')}
+                </div>
+                <p style={{ fontSize: '0.84rem', marginTop: '6px', maxWidth: '420px', margin: '6px auto 0' }}>
+                  {searchQuery || selectedChain !== 'All'
+                    ? 'No records match your active search or conduit network filter. Try clearing filters.'
+                    : 'Awaiting new algorithmic settlements across live liquidity pools.'}
+                </p>
+              </div>
+            )
           ) : viewLayout === 'grid' ? (
             /* Mode A: Quantum Cards Grid */
-            <div className="signals-grid-container">
-              {filteredSignals.map((signal) => (
-                <SignalCard
-                  key={signal.id}
-                  signal={signal}
-                  isExpanded={expandedSignalId === signal.id}
-                  onToggle={handleToggleExpand}
-                />
-              ))}
+            <div className="grid-view-wrapper" ref={tableContainerRef}>
+              {currentView !== 'global' && totalCount > 0 && (
+                <div className="grid-pagination-header">
+                  <div className="grid-header-meta">
+                    <span className="grid-header-title">
+                      {userProfile ? 'Personal Trade Ledger' : 'Live Execution Ledger'}
+                    </span>
+                    <span className="topbar-active-pill">
+                      {totalCount.toLocaleString()} Settled
+                    </span>
+                  </div>
+                  {renderPaginationWidget(false)}
+                </div>
+              )}
+              <div className="signals-grid-container">
+                {displaySignals.map((signal) => (
+                  <SignalCard
+                    key={signal.id}
+                    signal={signal}
+                    isExpanded={expandedSignalId === signal.id}
+                    onToggle={handleToggleExpand}
+                  />
+                ))}
+              </div>
+              {currentView !== 'global' && totalCount > pageSize && (
+                <div className="grid-bottom-pagination">
+                  {renderPaginationWidget(true)}
+                </div>
+              )}
             </div>
           ) : (
             /* Mode B: High-Density Terminal Table */
-            <div className="terminal-table-container">
+            <div className="terminal-table-container" ref={tableContainerRef}>
               {/* Decorative corner brackets matching Observatory design */}
               <span className="table-corner table-corner-tl" />
               <span className="table-corner table-corner-tr" />
@@ -645,10 +845,11 @@ export default function App() {
                       : (userProfile ? 'Personal Trade Ledger' : 'Live Execution Ledger')}
                   </h3>
                   <span className="topbar-active-pill">
-                    {filteredSignals.length}{' '}
+                    {totalCount.toLocaleString()}{' '}
                     {currentView === 'global' ? 'Active' : 'Settled'}
                   </span>
                 </div>
+                {renderPaginationWidget(false)}
               </div>
 
               <div className="terminal-header-row">
@@ -662,7 +863,7 @@ export default function App() {
                 </div>
               </div>
               <div className="terminal-rows-list">
-                {filteredSignals.map((signal) => (
+                {displaySignals.map((signal) => (
                   <SignalRow
                     key={signal.id}
                     signal={signal}
@@ -671,6 +872,12 @@ export default function App() {
                   />
                 ))}
               </div>
+
+              {currentView !== 'global' && totalCount > pageSize && (
+                <div className="table-bottom-pagination">
+                  {renderPaginationWidget(true)}
+                </div>
+              )}
             </div>
           )}
         </main>

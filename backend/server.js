@@ -236,35 +236,58 @@ app.get('/api/trade-history/:userId', async (req, res) => {
     }
 });
 
-// --- GET ALL HISTORY WITH FILTERS ENDPOINT ---
+// --- GET ALL HISTORY WITH FILTERS & CHUNKED PAGINATION ENDPOINT ---
 app.get('/api/all-history', async (req, res) => {
     try {
-        const { userId, timeframe } = req.query;
-        let queryStr = 'SELECT * FROM trade_history WHERE 1=1';
-        let queryParams = [];
+        const { userId, timeframe, limit, offset } = req.query;
+        let baseFilter = ' WHERE 1=1';
+        let filterParams = [];
         let paramCount = 1;
 
         if (userId) {
-            queryStr += ` AND user_id = $${paramCount}`;
-            queryParams.push(userId);
+            baseFilter += ` AND user_id = $${paramCount}`;
+            filterParams.push(userId);
             paramCount++;
         }
 
         if (timeframe === 'today') {
-            queryStr += ` AND DATE(created_at) = CURRENT_DATE`;
+            baseFilter += ` AND DATE(created_at) = CURRENT_DATE`;
         } else if (timeframe === 'last7days') {
-            queryStr += ` AND created_at >= NOW() - INTERVAL '7 days'`;
+            baseFilter += ` AND created_at >= NOW() - INTERVAL '7 days'`;
         } else if (timeframe === 'thismonth') {
-            queryStr += ` AND date_trunc('month', created_at) = date_trunc('month', CURRENT_DATE)`;
+            baseFilter += ` AND date_trunc('month', created_at) = date_trunc('month', CURRENT_DATE)`;
         }
 
-        queryStr += ' ORDER BY created_at DESC LIMIT 10000';
+        // 1. Get accurate total count for pagination header and HUD badges
+        const countRes = await dbClient.query(`SELECT COUNT(*) FROM trade_history${baseFilter}`, filterParams);
+        const totalTrades = parseInt(countRes.rows[0]?.count || 0, 10);
+
+        // 2. Paginate data with limit & offset (default limit 500 for lightning-fast network response)
+        const fetchLimit = limit === 'all' ? 0 : (limit !== undefined ? parseInt(limit, 10) : 500);
+        const fetchOffset = offset !== undefined ? parseInt(offset, 10) : 0;
+
+        let queryStr = `SELECT * FROM trade_history${baseFilter} ORDER BY created_at DESC`;
+        let queryParams = [...filterParams];
+
+        if (fetchLimit > 0) {
+            queryStr += ` LIMIT $${paramCount}`;
+            queryParams.push(fetchLimit);
+            paramCount++;
+            
+            if (fetchOffset > 0) {
+                queryStr += ` OFFSET $${paramCount}`;
+                queryParams.push(fetchOffset);
+                paramCount++;
+            }
+        }
 
         const historyCheck = await dbClient.query(queryStr, queryParams);
         
         res.status(200).json({
             success: true,
-            totalTrades: historyCheck.rows.length,
+            totalTrades: totalTrades,
+            limit: fetchLimit,
+            offset: fetchOffset,
             trades: historyCheck.rows
         });
     } catch (err) {
