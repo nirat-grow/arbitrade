@@ -178,8 +178,8 @@ app.get('/api/user-profile/:userId', async (req, res) => {
         const sessionCheck = await dbClient.query('SELECT * FROM auto_trade_sessions WHERE user_id = $1 ORDER BY id DESC LIMIT 1', [userId]);
         const session = sessionCheck.rows.length > 0 ? sessionCheck.rows[0] : null;
         
-        // 3. Get recent trade history (last 50 trades)
-        const historyCheck = await dbClient.query('SELECT * FROM trade_history WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50', [userId]);
+        // 3. Get recent trade history (all session trades up to 5000)
+        const historyCheck = await dbClient.query('SELECT * FROM trade_history WHERE user_id = $1 ORDER BY created_at DESC LIMIT 5000', [userId]);
         
         const currentProfit = session ? parseFloat(session.current_profit || 0) : 0;
         const targetProfit = session ? parseFloat(session.target_profit || 0) : 0;
@@ -660,7 +660,7 @@ function getJitteredSignals() {
 
 function sendUserHistory(ws, userId) {
     if (!userId || ws.readyState !== 1) return;
-    dbClient.query('SELECT * FROM trade_history WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50', [userId])
+    dbClient.query('SELECT * FROM trade_history WHERE user_id = $1 ORDER BY created_at DESC LIMIT 5000', [userId])
         .then(historyCheck => {
             const formattedHistory = historyCheck.rows.map(tradeData => {
                 const details = typeof tradeData.trade_details === 'string' ? JSON.parse(tradeData.trade_details) : tradeData.trade_details;

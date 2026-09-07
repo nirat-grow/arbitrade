@@ -334,7 +334,7 @@ export default function App() {
                 setPersonalSignals((prev) => {
                   const uniqueMy = myTrades.filter((item) => !prev.some((p) => p.id === item.id));
                   if (uniqueMy.length === 0) return prev;
-                  return [...uniqueMy, ...prev].slice(0, 50);
+                  return [...uniqueMy, ...prev];
                 });
 
                 const freshTrades = myTrades.filter((d) => !d.isHistory);
@@ -509,7 +509,7 @@ export default function App() {
     setExpandedSignalId(null);
   }, [currentView, selectedChain, searchQuery, sortBy]);
 
-  const isDefaultLedgerView = currentView === 'ledger' && selectedChain === 'All' && !searchQuery.trim();
+  const isDefaultLedgerView = currentView === 'ledger' && selectedChain === 'All' && !searchQuery.trim() && !userProfile;
   const totalCount = isDefaultLedgerView
     ? Math.max(totalSettledCount, filteredSignals.length)
     : filteredSignals.length;
