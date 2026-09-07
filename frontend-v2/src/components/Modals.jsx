@@ -135,7 +135,7 @@ export const LoginModal = ({ isOpen, onClose, onLogin }) => {
                 id="modal-user-id"
                 type="text"
                 className="modal-luxury-input"
-                placeholder="e.g. user_750 or user_test1"
+                placeholder="Enter Client Identifier / Key..."
                 value={userId}
                 onChange={(e) => setUserId(e.target.value)}
                 autoFocus
@@ -153,14 +153,6 @@ export const LoginModal = ({ isOpen, onClose, onLogin }) => {
                   ✕
                 </button>
               )}
-            </div>
-
-            <div className="modal-quick-select-row">
-              <span className="quick-select-label">Quick Fill:</span>
-              <button type="button" className="quick-select-chip" onClick={() => setUserId('user_750')}>user_750</button>
-              <button type="button" className="quick-select-chip" onClick={() => setUserId('user_751')}>user_751</button>
-              <button type="button" className="quick-select-chip" onClick={() => setUserId('user_752')}>user_752</button>
-              <button type="button" className="quick-select-chip" onClick={() => setUserId('user_700')}>user_700</button>
             </div>
           </div>
 
