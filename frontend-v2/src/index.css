@@ -4913,7 +4913,86 @@ html, body {
   .spectrum-visualizer-wrapper {
     width: 100%;
     max-width: 100%;
-    height: 36px;
+    height: 52px;
+    padding: 5px 10px;
+    background: rgba(6, 6, 10, 0.85);
+    border: 1px solid rgba(234, 179, 8, 0.22);
+    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.75), 0 0 16px -4px rgba(234, 179, 8, 0.15);
+  }
+
+  .spectrum-bars-row {
+    gap: 5px;
+  }
+
+  /* 14 Taller, Rounded 24K Gold Bars for Mobile (Filter out crowded even bars) */
+  .spectrum-bar-column:nth-child(even) {
+    display: none !important;
+  }
+
+  .spectrum-bar-column {
+    border-radius: 3px 3px 0 0;
+    animation-name: mobileHarmonicWave !important;
+    animation-duration: 2s !important;
+    animation-timing-function: cubic-bezier(0.45, 0.05, 0.55, 0.95) !important;
+    animation-iteration-count: infinite !important;
+    animation-direction: alternate !important;
+  }
+
+  /* Fluid, synchronized harmonic wave progression across 14 bars */
+  .spectrum-bar-column:nth-child(1)  { animation-delay: 0.00s !important; height: 38% !important; }
+  .spectrum-bar-column:nth-child(3)  { animation-delay: 0.12s !important; height: 52% !important; }
+  .spectrum-bar-column:nth-child(5)  { animation-delay: 0.24s !important; height: 70% !important; }
+  .spectrum-bar-column:nth-child(7)  { animation-delay: 0.36s !important; height: 86% !important; }
+  .spectrum-bar-column:nth-child(9)  { animation-delay: 0.48s !important; height: 95% !important; }
+  .spectrum-bar-column:nth-child(11) { animation-delay: 0.60s !important; height: 98% !important; }
+  .spectrum-bar-column:nth-child(13) { animation-delay: 0.72s !important; height: 92% !important; }
+  .spectrum-bar-column:nth-child(15) { animation-delay: 0.84s !important; height: 84% !important; }
+  .spectrum-bar-column:nth-child(17) { animation-delay: 0.96s !important; height: 72% !important; }
+  .spectrum-bar-column:nth-child(19) { animation-delay: 1.08s !important; height: 58% !important; }
+  .spectrum-bar-column:nth-child(21) { animation-delay: 1.20s !important; height: 48% !important; }
+  .spectrum-bar-column:nth-child(23) { animation-delay: 1.32s !important; height: 64% !important; }
+  .spectrum-bar-column:nth-child(25) { animation-delay: 1.44s !important; height: 82% !important; }
+  .spectrum-bar-column:nth-child(27) { animation-delay: 1.56s !important; height: 44% !important; }
+
+  @keyframes mobileHarmonicWave {
+    0% {
+      transform: scaleY(0.32);
+      filter: brightness(0.85);
+    }
+    50% {
+      filter: brightness(1.15) drop-shadow(0 0 5px rgba(254, 240, 138, 0.6));
+    }
+    100% {
+      transform: scaleY(1.0);
+      filter: brightness(1.3) drop-shadow(0 0 8px rgba(234, 179, 8, 0.7));
+    }
+  }
+
+  .spectrum-bar-fill {
+    border-radius: 3px 3px 0 0;
+    background: linear-gradient(180deg, #FFFDF0 0%, #FEF08A 25%, #F59E0B 60%, #CA8A04 88%, #78350F 100%);
+    box-shadow: 0 0 8px rgba(234, 179, 8, 0.35);
+  }
+
+  .spectrum-bar-peak {
+    height: 3px;
+    background: #FFFDF0;
+    border-radius: 2px 2px 0 0;
+    box-shadow: 0 0 6px #FEF08A;
+    margin-bottom: 1px;
+  }
+
+  .spectrum-laser-sweep {
+    width: 3px;
+    background: linear-gradient(180deg, transparent, #FFFFFF 30%, #FEF08A 70%, transparent);
+    box-shadow: 0 0 12px 3px rgba(254, 240, 138, 0.75);
+    animation: mobileLaserGlide 2.6s ease-in-out infinite alternate;
+  }
+
+  @keyframes mobileLaserGlide {
+    0% { left: 2%; opacity: 0.35; }
+    50% { opacity: 1; }
+    100% { left: 96%; opacity: 0.45; }
   }
 
   .spectrum-telemetry-col {
