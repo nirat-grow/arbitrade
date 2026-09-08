@@ -1,4 +1,5 @@
 import React from 'react';
+import xpr3tLogo from '../assets/xpr3t-full-logo.png';
 import NexusLogo from './NexusLogo';
 
 export const Navbar = ({
@@ -16,14 +17,16 @@ export const Navbar = ({
   return (
     <header className="nexus-navbar">
       {/* Brand Left */}
-      <div className="nav-brand" onClick={() => (isAdminRoute ? onOpenAdmin(false) : onViewChange('global'))}>
-        <NexusLogo size={42} />
-        <div className="brand-text-wrap">
-          <div className="brand-title">
-            KAROMETA
-          </div>
-          <div className="brand-kicker">Autonomous Arbitrage Matrix</div>
-        </div>
+      <div 
+        className="nav-brand" 
+        onClick={() => (isAdminRoute ? onOpenAdmin(false) : onViewChange('global'))}
+        title="XPR3T • Trust, Access & Economic Stake"
+      >
+        <img
+          src={xpr3tLogo}
+          alt="XPR3T - Trust, Access & Economic Stake"
+          className="xpr3t-navbar-logo"
+        />
       </div>
 
       {/* Center Nav Switcher: Global Matrix vs Personal/Execution Ledger */}

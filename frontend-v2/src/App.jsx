@@ -15,6 +15,17 @@ export default function App() {
   const [currentView, setCurrentView] = useState('global'); // 'global' | 'personal'
   const [viewLayout, setViewLayout] = useState('grid'); // 'grid' | 'terminal'
   const [isReadOnlyProfile, setIsReadOnlyProfile] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth <= 768 : false));
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const effectiveLayout = isMobile ? 'grid' : viewLayout;
 
   // Data states
   const [globalSignals, setGlobalSignals] = useState([]);
@@ -767,73 +778,94 @@ export default function App() {
                 )}
               </div>
 
-              {/* View Layout Toggle (Grid vs Terminal Table) */}
-              <div className="view-type-toggle" role="group" aria-label="View Layout">
-                <button
-                  type="button"
-                  className={`view-type-btn ${viewLayout === 'grid' ? 'active' : ''}`}
-                  onClick={() => setViewLayout('grid')}
-                  title="Quantum Cards Grid View"
-                  aria-label="Quantum Cards Grid View"
-                >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="7" height="7" rx="1.5" />
-                    <rect x="14" y="3" width="7" height="7" rx="1.5" />
-                    <rect x="14" y="14" width="7" height="7" rx="1.5" />
-                    <rect x="3" y="14" width="7" height="7" rx="1.5" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  className={`view-type-btn ${viewLayout === 'terminal' ? 'active' : ''}`}
-                  onClick={() => setViewLayout('terminal')}
-                  title="High-Frequency Dense Table View"
-                  aria-label="High-Frequency Dense Table View"
-                >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="3" y1="6" x2="21" y2="6" />
-                    <line x1="3" y1="12" x2="21" y2="12" />
-                    <line x1="3" y1="18" x2="21" y2="18" />
-                  </svg>
-                </button>
-              </div>
+              {/* View Layout Toggle (Grid vs Terminal Table) - Desktop Only */}
+              {!isMobile && (
+                <div className="view-type-toggle" role="group" aria-label="View Layout">
+                  <button
+                    type="button"
+                    className={`view-type-btn ${effectiveLayout === 'grid' ? 'active' : ''}`}
+                    onClick={() => setViewLayout('grid')}
+                    title="Quantum Cards Grid View"
+                    aria-label="Quantum Cards Grid View"
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+                      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+                      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    className={`view-type-btn ${effectiveLayout === 'terminal' ? 'active' : ''}`}
+                    onClick={() => setViewLayout('terminal')}
+                    title="High-Frequency Dense Table View"
+                    aria-label="High-Frequency Dense Table View"
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="3" y1="6" x2="21" y2="6" />
+                      <line x1="3" y1="12" x2="21" y2="12" />
+                      <line x1="3" y1="18" x2="21" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Signals Stream Display */}
           {filteredSignals.length === 0 ? (
             isFetchingInitialLedger && currentView === 'ledger' ? (
-              /* High-End Obsidian Shimmer Skeleton while initially loading first time */
-              <div className="terminal-table-container">
-                <span className="table-corner table-corner-tl" />
-                <span className="table-corner table-corner-tr" />
-                <span className="table-corner table-corner-bl" />
-                <span className="table-corner table-corner-br" />
-                <div className="terminal-card-topbar">
-                  <div className="topbar-title-wrap">
-                    <div className="topbar-icon-badge">
-                      <svg className="topbar-icon-bolt" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                      </svg>
-                    </div>
-                    <h3 className="topbar-title">Live Execution Ledger</h3>
-                    <span className="topbar-active-pill">Syncing Ledger...</span>
+              effectiveLayout === 'grid' ? (
+                /* Card Skeleton while initially loading in grid/mobile mode */
+                <div className="grid-view-wrapper" ref={tableContainerRef}>
+                  <div className="signals-grid-container">
+                    {[1, 2, 3, 4, 5, 6].map((idx) => (
+                      <div key={idx} className="quantum-signal-card" style={{ opacity: 0.7 }}>
+                        <span className="card-corner card-corner-tl" />
+                        <span className="card-corner card-corner-tr" />
+                        <span className="card-corner card-corner-bl" />
+                        <span className="card-corner card-corner-br" />
+                        <div className="terminal-skeleton-row" style={{ height: '28px', marginBottom: '6px' }} />
+                        <div className="terminal-skeleton-row" style={{ height: '42px', marginBottom: '6px' }} />
+                        <div className="terminal-skeleton-row" style={{ height: '56px' }} />
+                      </div>
+                    ))}
                   </div>
                 </div>
-                <div className="terminal-header-row">
-                  <div className="header-cell">Conduit</div>
-                  <div className="header-cell">Execution Route</div>
-                  <div className="header-cell">Latency</div>
-                  <div className="header-cell">Net Yield ($)</div>
-                  <div className="header-cell">Est. ROI</div>
-                  <div className="header-cell" style={{ textAlign: 'right', justifyContent: 'flex-end' }}>Inspect</div>
+              ) : (
+                /* High-End Obsidian Shimmer Skeleton while initially loading table on desktop */
+                <div className="terminal-table-container">
+                  <span className="table-corner table-corner-tl" />
+                  <span className="table-corner table-corner-tr" />
+                  <span className="table-corner table-corner-bl" />
+                  <span className="table-corner table-corner-br" />
+                  <div className="terminal-card-topbar">
+                    <div className="topbar-title-wrap">
+                      <div className="topbar-icon-badge">
+                        <svg className="topbar-icon-bolt" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                        </svg>
+                      </div>
+                      <h3 className="topbar-title">Live Execution Ledger</h3>
+                      <span className="topbar-active-pill">Syncing Ledger...</span>
+                    </div>
+                  </div>
+                  <div className="terminal-header-row">
+                    <div className="header-cell">Conduit</div>
+                    <div className="header-cell">Execution Route</div>
+                    <div className="header-cell">Latency</div>
+                    <div className="header-cell">Net Yield ($)</div>
+                    <div className="header-cell">Est. ROI</div>
+                    <div className="header-cell" style={{ textAlign: 'right', justifyContent: 'flex-end' }}>Inspect</div>
+                  </div>
+                  <div className="terminal-skeleton-table">
+                    {[1, 2, 3, 4, 5, 6, 7].map((idx) => (
+                      <div key={idx} className="terminal-skeleton-row" />
+                    ))}
+                  </div>
                 </div>
-                <div className="terminal-skeleton-table">
-                  {[1, 2, 3, 4, 5, 6, 7].map((idx) => (
-                    <div key={idx} className="terminal-skeleton-row" />
-                  ))}
-                </div>
-              </div>
+              )
             ) : (
               <div
                 style={{
@@ -858,7 +890,7 @@ export default function App() {
                 </p>
               </div>
             )
-          ) : viewLayout === 'grid' ? (
+          ) : effectiveLayout === 'grid' ? (
             /* Mode A: Quantum Cards Grid */
             <div className="grid-view-wrapper" ref={tableContainerRef}>
               {currentView !== 'global' && totalCount > 0 && (

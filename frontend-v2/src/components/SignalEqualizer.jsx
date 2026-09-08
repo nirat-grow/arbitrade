@@ -72,14 +72,13 @@ export default function SignalEqualizer({ barCount = 28 }) {
               key={bar.id}
               className="spectrum-bar-column"
               style={{
-                '--min-height': bar.minH,
-                '--max-height': bar.maxH,
+                height: bar.maxH,
                 animationDuration: bar.duration,
                 animationDelay: bar.delay,
               }}
             >
-              <div className="spectrum-bar-fill" />
               <div className="spectrum-bar-peak" />
+              <div className="spectrum-bar-fill" />
             </div>
           ))}
         </div>

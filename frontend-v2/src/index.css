@@ -162,8 +162,8 @@ body {
   -webkit-backdrop-filter: blur(20px);
   background: var(--bg-glass-heavy);
   border-bottom: 1px solid var(--border-subtle);
-  padding: 0 28px;
-  height: 72px;
+  padding: 0 32px;
+  height: 78px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -176,6 +176,22 @@ body {
   text-decoration: none;
   cursor: pointer;
   user-select: none;
+  margin-left: 42px;
+}
+
+.xpr3t-navbar-logo {
+  height: 58px;
+  width: auto;
+  max-width: 260px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 10px rgba(234, 179, 8, 0.25));
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: block;
+}
+
+.nav-brand:hover .xpr3t-navbar-logo {
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.85)) drop-shadow(0 0 16px rgba(234, 179, 8, 0.5));
+  transform: scale(1.02);
 }
 
 .nexus-brand-symbol {
@@ -1049,13 +1065,14 @@ body {
    ========================================================================== */
 .signals-grid-container {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
   gap: 24px;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 768px) {
   .signals-grid-container {
     grid-template-columns: 1fr;
+    gap: 16px;
   }
 }
 
@@ -4091,6 +4108,54 @@ body {
   text-shadow: 0 0 12px rgba(253, 224, 71, 0.35);
 }
 
+.telemetry-pod.chrono-sync-pod {
+  min-width: 250px;
+}
+
+.pod-primary-value.chrono-combined {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.chrono-date {
+  font-family: var(--font-tech);
+  font-size: 0.94rem;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.chrono-sep {
+  color: var(--gold-core);
+  opacity: 0.65;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.chrono-time {
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--gold-bright);
+  text-shadow: 0 0 12px rgba(253, 224, 71, 0.35);
+}
+
+@media (max-width: 768px) {
+  .telemetry-pod.chrono-sync-pod {
+    min-width: auto;
+  }
+  .pod-primary-value.chrono-combined {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .chrono-sep {
+    display: none;
+  }
+}
+
 .pod-footer-meta {
   font-size: 0.68rem;
   color: var(--text-secondary);
@@ -4350,10 +4415,10 @@ body {
 
 .spectrum-bar-column {
   flex: 1;
-  height: var(--min-height, 20%);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
+  transform-origin: bottom;
   animation-name: spectrumWaveDance;
   animation-timing-function: ease-in-out;
   animation-iteration-count: infinite;
@@ -4361,13 +4426,18 @@ body {
 }
 
 @keyframes spectrumWaveDance {
-  0% { height: var(--min-height, 20%); }
-  100% { height: var(--max-height, 90%); }
+  0% {
+    transform: scaleY(0.22);
+  }
+  100% {
+    transform: scaleY(1);
+  }
 }
 
 .spectrum-bar-fill {
   width: 100%;
-  height: 100%;
+  flex: 1;
+  min-height: 2px;
   border-radius: 2px 2px 0 0;
   background: linear-gradient(180deg, #FEF08A 0%, #EAB308 45%, #78350F 100%);
   transition: opacity 0.2s;
@@ -4385,6 +4455,7 @@ body {
   border-radius: 1px;
   box-shadow: 0 0 4px #FEF08A;
   margin-bottom: 1px;
+  flex-shrink: 0;
 }
 
 /* Right Telemetry Column */
@@ -4629,7 +4700,628 @@ body {
   padding: 24px 0 12px;
 }
 
+/* ==========================================================================
+   COMPREHENSIVE RESPONSIVE SUITE // MOBILE, TABLET & DESKTOP ADAPTATION
+   Preserves 100% of Luxury Black & Gold Aerospace Aesthetics
+   ========================================================================== */
+
+/* Prevent horizontal overflow globally */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* --------------------------------------------------------------------------
+   1. TABLET & SMALL LAPTOP LANDSCAPE (max-width: 1024px)
+   -------------------------------------------------------------------------- */
+@media (max-width: 1024px) {
+  .nexus-main {
+    padding: 20px 20px 56px;
+  }
+  .signals-grid-container {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   2. TABLETS & PHABLETS (max-width: 900px)
+   -------------------------------------------------------------------------- */
+@media (max-width: 900px) {
+  /* Navbar */
+  .nexus-navbar {
+    padding: 0 18px;
+    height: auto;
+    min-height: 68px;
+  }
+
+  .nav-mode-switcher {
+    position: static;
+    transform: none;
+    margin: 0 auto;
+  }
+
+  /* Matrix Control Bar */
+  .matrix-control-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    padding: 14px 16px;
+  }
+
+  .filter-chain-group {
+    width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .filter-chain-group::-webkit-scrollbar {
+    display: none;
+  }
+
+  .chain-filter-btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .control-tools-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .matrix-search {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Dense Terminal Table: horizontal scrolling inside container */
+  .terminal-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .terminal-header-row,
+  .terminal-data-row {
+    min-width: 760px;
+  }
+
+  /* Inspection Drawer */
+  .signal-inspection-drawer.table-mode {
+    grid-template-columns: 1fr;
+    padding: 16px;
+    gap: 16px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   3. MOBILE DEVICES & NARROW SCREENS (max-width: 768px)
+   -------------------------------------------------------------------------- */
 @media (max-width: 768px) {
+  /* Navbar: 2-Row Native Mobile Command Bar */
+  .nexus-navbar {
+    padding: 10px 14px 12px;
+    flex-wrap: wrap;
+    gap: 10px;
+    height: auto;
+  }
+
+  .nav-brand {
+    gap: 10px;
+    margin-left: 0;
+  }
+
+  .xpr3t-navbar-logo {
+    height: 44px;
+    max-width: 180px;
+  }
+
+  .brand-title {
+    font-size: 1.15rem;
+  }
+
+  .nav-actions {
+    gap: 8px;
+  }
+
+  .nav-mode-switcher {
+    width: 100%;
+    justify-content: center;
+    order: 3;
+    padding: 3px;
+  }
+
+  .mode-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 6px 10px;
+    font-size: 0.78rem;
+  }
+
+  /* Main Container */
+  .nexus-main {
+    padding: 14px 12px 48px;
+  }
+
+  /* Top Observatory Cockpit Header */
+  .nexus-observatory-deck {
+    padding: 16px 14px;
+    margin-bottom: 14px;
+    border-radius: var(--radius-md);
+  }
+
+  .deck-main-layout {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .deck-heading {
+    font-size: 1.7rem;
+    line-height: 1.2;
+  }
+
+  .deck-subtext {
+    font-size: 0.8rem;
+    line-height: 1.45;
+  }
+
+  .deck-telemetry-console {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .telemetry-pod,
+  .telemetry-pod.chrono-sync-pod {
+    width: 100%;
+    min-width: 100%;
+    padding: 12px 14px;
+  }
+
+  .pod-primary-value.chrono-combined {
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: baseline;
+  }
+
+  .chrono-date {
+    font-size: 0.9rem;
+  }
+
+  .chrono-time {
+    font-size: 1.12rem;
+  }
+
+  /* Harmonic Equalizer Spectrum - Mobile Optimization */
+  .quantum-spectrum-deck {
+    padding: 14px 14px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .spectrum-beacon-col {
+    width: 100%;
+    justify-content: space-between;
+    min-width: unset;
+  }
+
+  .spectrum-visualizer-wrapper {
+    width: 100%;
+    max-width: 100%;
+    height: 36px;
+  }
+
+  .spectrum-telemetry-col {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    min-width: unset;
+  }
+
+  .spectrum-score-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .spectrum-aux-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    padding-top: 4px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    margin-top: 0;
+  }
+
+  /* Matrix Control Bar & Chain Filters - Mobile Optimization */
+  .matrix-control-bar {
+    padding: 12px 14px;
+    gap: 12px;
+  }
+
+  .filter-chain-group {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    overflow-x: visible;
+    padding-bottom: 0;
+  }
+
+  .filter-chain-group .control-bar-label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-right: 2px;
+    font-family: var(--font-tech);
+    font-weight: 700;
+  }
+
+  .chain-filter-btn {
+    height: 30px;
+    padding: 0 10px;
+    font-size: 0.74rem;
+    flex-shrink: 0;
+    gap: 5px;
+  }
+
+  .control-tools-right {
+    width: 100%;
+  }
+
+  .matrix-search {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* Signal Cards Grid - Force clean 1-column box records on mobile */
+  .signals-grid-container {
+    grid-template-columns: 1fr !important;
+    gap: 14px;
+  }
+
+  .quantum-signal-card {
+    padding: 16px 14px;
+    border-radius: var(--radius-md);
+  }
+
+  /* Completely hide Terminal Table (list records) & switcher on mobile/responsive */
+  .view-type-toggle {
+    display: none !important;
+  }
+
+  .terminal-table-container {
+    display: none !important;
+  }
+
+  /* ==========================================================================
+     QUANTUM SIGNAL CARD & TELEMETRY INSPECTION DRAWER (MOBILE OPTIMIZATIONS)
+     ========================================================================== */
+  .signals-grid-container {
+    grid-template-columns: 1fr !important;
+    gap: 14px;
+  }
+
+  .quantum-signal-card {
+    padding: 14px 13px;
+    border-radius: var(--radius-md);
+    gap: 12px;
+  }
+
+  .signal-card-top {
+    gap: 6px;
+  }
+
+  .network-badge-custom {
+    padding: 3px 8px;
+    font-size: 0.68rem;
+  }
+
+  .execution-type-pill {
+    padding: 2px 6px;
+    font-size: 0.64rem;
+  }
+
+  .signal-timestamp {
+    font-size: 0.68rem;
+  }
+
+  .route-chain-flow {
+    padding: 7px 10px;
+    gap: 5px;
+    margin: 1px 0;
+  }
+
+  .token-pill {
+    padding: 2px 6px;
+  }
+
+  .token-pill-name {
+    font-size: 0.74rem;
+  }
+
+  .signal-financial-row {
+    padding: 2px 0 4px;
+  }
+
+  .fin-metric-label {
+    font-size: 0.62rem;
+  }
+
+  .fin-metric-value {
+    font-size: 1.12rem;
+  }
+
+  .inspect-expand-btn {
+    height: 36px;
+    font-size: 0.76rem;
+    padding: 0 12px;
+    border-radius: 8px;
+  }
+
+  /* Signal Inspection Drawer inside Card Mode */
+  .signal-inspection-drawer.card-mode {
+    gap: 12px;
+    padding-top: 14px;
+    margin-top: 4px;
+    max-height: 2800px;
+  }
+
+  .drawer-panel {
+    padding: 12px 12px;
+    gap: 10px;
+    border-radius: var(--radius-sm);
+  }
+
+  .drawer-panel-header {
+    padding-bottom: 8px;
+  }
+
+  .panel-title-text {
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+  }
+
+  .panel-kicker-tag {
+    font-size: 0.6rem;
+    padding: 1px 6px;
+  }
+
+  /* Transaction Attestation Bar - 2 Clean Dedicated Rows on Mobile (Zero Overlap) */
+  .drawer-tx-attestation-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 7px;
+    padding: 9px 12px;
+    background: rgba(12, 12, 18, 0.95);
+    border: 1px solid rgba(234, 179, 8, 0.22);
+    border-radius: var(--radius-sm);
+  }
+
+  .tx-attestation-left {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .tx-attestation-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.06em;
+    font-weight: 800;
+    color: var(--text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .tx-hash-mono {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--gold-bright);
+    white-space: nowrap;
+    word-break: normal;
+    text-shadow: 0 0 8px rgba(253, 224, 71, 0.3);
+  }
+
+  .tx-attestation-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    padding-top: 7px;
+    margin-top: 1px;
+  }
+
+  .tx-copy-btn,
+  .tx-explorer-link {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    height: 27px;
+    padding: 0 10px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    border-radius: 5px;
+    text-align: center;
+  }
+
+  /* 4-Tile High-Tech Instrument Cluster - Sleek 2x2 Grid (Saves 50% Vertical Height) */
+  .telemetry-tiles-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .telemetry-tile {
+    padding: 8px 10px;
+    gap: 3px;
+    border-radius: var(--radius-sm);
+  }
+
+  .tile-top-row {
+    margin-bottom: 2px;
+  }
+
+  .tile-label {
+    font-size: 0.63rem;
+    letter-spacing: 0.04em;
+  }
+
+  .tile-val-wrap {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px;
+  }
+
+  .tile-value {
+    font-size: 0.92rem;
+    font-weight: 800;
+  }
+
+  .tile-subtag {
+    font-size: 0.58rem;
+    padding: 1px 5px;
+  }
+
+  /* Net Realized Yield Spotlight Banner */
+  .settlement-net-card {
+    padding: 11px 13px;
+    border-radius: var(--radius-sm);
+  }
+
+  .settlement-net-card .net-card-content {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .net-card-label {
+    font-size: 0.62rem;
+  }
+
+  .net-card-value {
+    font-size: 1.35rem;
+    line-height: 1.1;
+  }
+
+  .net-card-right {
+    gap: 4px;
+  }
+
+  .net-roi-value {
+    font-size: 1.05rem;
+  }
+
+  .net-status-pill {
+    font-size: 0.6rem;
+    padding: 2px 7px;
+  }
+
+  /* Autonomous Execution Index Gauge */
+  .confidence-hud-meter {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 12px;
+    border-radius: var(--radius-sm);
+  }
+
+  .confidence-radial-wrap {
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+  }
+
+  .confidence-score-val {
+    font-size: 0.9rem;
+  }
+
+  .confidence-title {
+    font-size: 0.76rem;
+  }
+
+  .confidence-sub {
+    font-size: 0.65rem;
+    line-height: 1.3;
+  }
+
+  /* Connected Route Sequence Feed */
+  .hops-timeline-feed {
+    max-height: 340px;
+    padding-right: 4px;
+  }
+
+  .hop-timeline-row {
+    gap: 9px;
+  }
+
+  .timeline-gutter {
+    width: 24px;
+  }
+
+  .timeline-node-badge {
+    width: 21px;
+    height: 21px;
+  }
+
+  .node-num {
+    font-size: 0.64rem;
+  }
+
+  .hop-content-card {
+    padding: 8px 10px;
+    gap: 6px;
+    margin-bottom: 7px;
+  }
+
+  .hop-dex-badge {
+    gap: 5px;
+  }
+
+  .hop-dex-name {
+    font-size: 0.74rem;
+  }
+
+  .hop-swap-route-box {
+    padding: 3px 6px;
+    gap: 6px;
+  }
+
+  .swap-token-badge .token-name {
+    font-size: 0.72rem;
+  }
+
+  .hop-router-info {
+    font-size: 0.64rem;
+  }
+
+  .hop-address-mono {
+    font-size: 0.68rem;
+  }
+
+  /* Pagination */
   .terminal-card-topbar {
     flex-wrap: wrap;
     gap: 12px;
@@ -4645,6 +5337,68 @@ body {
   .table-bottom-pagination {
     justify-content: center;
     padding: 12px 16px;
+  }
+
+  /* Modals */
+  .modal-overlay {
+    padding: 14px;
+  }
+
+  .modal-quantum-card {
+    padding: 22px 16px 20px;
+    border-radius: var(--radius-lg);
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   4. ULTRA-COMPACT SMARTPHONES (max-width: 480px)
+   -------------------------------------------------------------------------- */
+@media (max-width: 480px) {
+  .brand-kicker {
+    display: none;
+  }
+
+  .deck-heading {
+    font-size: 1.45rem;
+  }
+
+  .deck-kicker {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .user-telemetry-badge {
+    padding: 4px 8px;
+    gap: 6px;
+  }
+
+  .user-id-tag {
+    font-size: 0.72rem;
+    padding: 2px 6px;
+  }
+
+  .user-balance-value {
+    font-size: 0.82rem;
+  }
+
+  .nexus-btn {
+    padding: 7px 12px;
+    font-size: 0.78rem;
+  }
+
+  .stream-metrics-group {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .table-path-flow {
+    gap: 4px;
+  }
+
+  .table-path-token {
+    font-size: 0.76rem;
   }
 }
 

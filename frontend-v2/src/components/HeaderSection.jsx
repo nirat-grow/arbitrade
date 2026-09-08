@@ -40,20 +40,31 @@ const useCountdownTimer = (endTime, onExpire) => {
   return timeLeft;
 };
 
+const formatUtcDate = (d) => {
+  const day = d.toLocaleDateString('en-US', { day: '2-digit', timeZone: 'UTC' });
+  const month = d.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }).toUpperCase();
+  const year = d.toLocaleDateString('en-US', { year: 'numeric', timeZone: 'UTC' });
+  return `${day} ${month} ${year}`;
+};
+
+const formatUtcTime = (d) => {
+  return d.toLocaleTimeString('en-US', {
+    hour12: false,
+    timeZone: 'UTC',
+  });
+};
+
 export default function HeaderSection({ currentView, userProfile }) {
-  const [utcTime, setUtcTime] = useState('');
+  const [utcTime, setUtcTime] = useState(() => formatUtcTime(new Date()));
+  const [utcDate, setUtcDate] = useState(() => formatUtcDate(new Date()));
   const [blockNum, setBlockNum] = useState(19842106);
 
-  // Live UTC Clock
+  // Live UTC Clock & Date
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-      setUtcTime(
-        now.toLocaleTimeString('en-US', {
-          hour12: false,
-          timeZone: 'UTC',
-        })
-      );
+      setUtcTime(formatUtcTime(now));
+      setUtcDate(formatUtcDate(now));
     };
     updateTime();
     const interval = setInterval(updateTime, 1000);
@@ -157,7 +168,7 @@ export default function HeaderSection({ currentView, userProfile }) {
               </div>
               <div className="pod-footer-meta">
                 <span className="pod-block-label">
-                  {userProfile ? `NODE • ACTIVE` : `UTC - ${utcTime || 'LIVE SYNC'}`}
+                  {userProfile ? `NODE • ACTIVE` : `${utcDate} • ${utcTime} UTC`}
                 </span>
               </div>
             </div>
@@ -203,13 +214,15 @@ export default function HeaderSection({ currentView, userProfile }) {
         {/* Right: Quantum Telemetry Console Pods */}
         <div className="deck-telemetry-console">
           {/* Telemetry Pod 1: UTC Master Chrono */}
-          <div className="telemetry-pod">
+          <div className="telemetry-pod chrono-sync-pod">
             <div className="pod-header">
               <span className="pod-pip gold" />
               <span className="pod-label">LAST SYNC (UTC)</span>
             </div>
-            <div className="pod-primary-value gold-digits">
-              {utcTime ? `${utcTime} UTC` : 'SYNCHRONIZING...'}
+            <div className="pod-primary-value gold-digits chrono-combined">
+              <span className="chrono-date">{utcDate}</span>
+              <span className="chrono-sep">•</span>
+              <span className="chrono-time">{utcTime ? `${utcTime} UTC` : 'SYNCHRONIZING...'}</span>
             </div>
             <div className="pod-footer-meta">
               <span className="pod-pulse-indicator">
