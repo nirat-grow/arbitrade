@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import NexusLogo from './NexusLogo';
+import xpr3tLogo from '../assets/xpr3t-full-logo.png';
 
 export const AdminPortal = ({ onBackToTerminal }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem('nexusAdminLogged') === 'true');
@@ -120,7 +120,7 @@ export const AdminPortal = ({ onBackToTerminal }) => {
       <div className="modal-overlay" style={{ background: 'var(--bg-core)' }}>
         <div className="modal-quantum-card" style={{ maxWidth: '420px', border: '1px solid var(--border-mid)' }}>
           <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <NexusLogo size={48} className="admin-login-logo" />
+            <img src={xpr3tLogo} alt="XPR3T" style={{ height: '48px', objectFit: 'contain' }} />
             <div style={{ 
               fontFamily: 'var(--font-tech)', 
               fontSize: '0.75rem', 
@@ -190,7 +190,7 @@ export const AdminPortal = ({ onBackToTerminal }) => {
       {/* Top Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <NexusLogo size={42} />
+          <img src={xpr3tLogo} alt="XPR3T" style={{ height: '38px', objectFit: 'contain' }} />
           <div>
             <div style={{ fontFamily: 'var(--font-tech)', fontSize: '1.5rem', fontWeight: '800' }}>
               ADMIN COMMAND COCKPIT

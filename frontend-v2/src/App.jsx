@@ -877,7 +877,7 @@ export default function App() {
                   color: 'var(--text-secondary)',
                 }}
               >
-                <div style={{ fontSize: '2rem', marginBottom: '10px' }}>⚡</div>
+                <div style={{ fontSize: '2.2rem', marginBottom: '12px', filter: 'drop-shadow(0 0 16px rgba(0, 163, 255, 0.7))' }}>⚡</div>
                 <div style={{ fontFamily: 'var(--font-tech)', fontSize: '1.1rem', color: '#FFFFFF', fontWeight: '700' }}>
                   {currentView === 'global'
                     ? 'Scanning High-Frequency Arbitrage Conduits...'

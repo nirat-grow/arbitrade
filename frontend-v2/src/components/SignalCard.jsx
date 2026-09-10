@@ -21,10 +21,10 @@ export const SignalCard = React.memo(({ signal, isExpanded, onToggle }) => {
   const roiNum = Math.abs(parseFloat(signal.calculation.roi) || 0);
 
   const netStyle = NETWORK_COLORS[signal.network] || {
-    bg: 'rgba(234, 179, 8, 0.1)',
-    border: 'rgba(234, 179, 8, 0.35)',
-    color: 'var(--gold-bright)',
-    dot: 'var(--gold-core)',
+    bg: 'rgba(0, 163, 255, 0.1)',
+    border: 'rgba(0, 163, 255, 0.35)',
+    color: 'var(--cyber-blue)',
+    dot: 'var(--cyber-blue)',
   };
 
   const handleCardToggle = (e) => {

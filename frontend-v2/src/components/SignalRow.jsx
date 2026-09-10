@@ -18,7 +18,7 @@ export const SignalRow = React.memo(({ signal, isExpanded, onToggle }) => {
   const netDisplay = formatNetProfit(signal.calculation.net, signal.profitAmount);
   const isProfit = !netDisplay.startsWith('-');
   const roiDisplay = formatROI(signal.calculation.roi);
-  const netDotColor = NETWORK_COLORS[signal.network] || 'var(--gold-core)';
+  const netDotColor = NETWORK_COLORS[signal.network] || 'var(--cyber-blue)';
 
   const handleRowToggle = (e) => {
     if (e && e.stopPropagation) e.stopPropagation();

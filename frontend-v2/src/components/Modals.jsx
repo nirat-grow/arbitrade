@@ -75,17 +75,17 @@ export const LoginModal = ({ isOpen, onClose, onLogin }) => {
             <div className="modal-icon-hexagon">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="modal-vault-icon">
                 <defs>
-                  <linearGradient id="modalGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#FFFBEB" />
-                    <stop offset="30%" stopColor="#FEF08A" />
-                    <stop offset="65%" stopColor="#F59E0B" />
-                    <stop offset="100%" stopColor="#D97706" />
+                  <linearGradient id="modalCyberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#FFFFFF" />
+                    <stop offset="30%" stopColor="#38BDF8" />
+                    <stop offset="65%" stopColor="#00A3FF" />
+                    <stop offset="100%" stopColor="#8B5CF6" />
                   </linearGradient>
                 </defs>
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="url(#modalGoldGrad)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="rgba(234, 179, 8, 0.12)" />
-                <rect x="9" y="11" width="6" height="5" rx="1.2" stroke="url(#modalGoldGrad)" strokeWidth="1.8" fill="rgba(234, 179, 8, 0.3)" />
-                <path d="M10 11V9a2 2 0 1 1 4 0v2" stroke="url(#modalGoldGrad)" strokeWidth="1.8" strokeLinecap="round" />
-                <circle cx="12" cy="13.5" r="0.8" fill="#FFFBEB" />
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="url(#modalCyberGrad)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="rgba(0, 163, 255, 0.12)" />
+                <rect x="9" y="11" width="6" height="5" rx="1.2" stroke="url(#modalCyberGrad)" strokeWidth="1.8" fill="rgba(0, 163, 255, 0.3)" />
+                <path d="M10 11V9a2 2 0 1 1 4 0v2" stroke="url(#modalCyberGrad)" strokeWidth="1.8" strokeLinecap="round" />
+                <circle cx="12" cy="13.5" r="0.8" fill="#FFFFFF" />
               </svg>
             </div>
           </div>
