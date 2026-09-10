@@ -1,6 +1,4 @@
 import React from 'react';
-import xpr3tLogo from '../assets/xpr3t-full-logo.png';
-import NexusLogo from './NexusLogo';
 
 export const Navbar = ({
   userProfile,
@@ -16,18 +14,8 @@ export const Navbar = ({
 }) => {
   return (
     <header className="nexus-navbar">
-      {/* Brand Left */}
-      <div 
-        className="nav-brand" 
-        onClick={() => (isAdminRoute ? onOpenAdmin(false) : onViewChange('global'))}
-        title="XPR3T • Trust, Access & Economic Stake"
-      >
-        <img
-          src={xpr3tLogo}
-          alt="XPR3T - Trust, Access & Economic Stake"
-          className="xpr3t-navbar-logo"
-        />
-      </div>
+      {/* Brand Left (Logo Removed) */}
+      <div className="nav-brand-spacer" />
 
       {/* Center Nav Switcher: Global Matrix vs Personal/Execution Ledger */}
       {!isAdminRoute && (
@@ -56,7 +44,7 @@ export const Navbar = ({
       )}
 
       {/* Right Telemetry & Actions */}
-      <div className="nav-actions">
+      <div className="nav-actions" style={{ marginLeft: 'auto' }}>
         {/* User Capsule */}
         {userProfile ? (
           <div className="user-telemetry-badge">
