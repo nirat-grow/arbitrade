@@ -7,7 +7,40 @@ import SignalRow from './components/SignalRow';
 import PersonalDashboard from './components/PersonalDashboard';
 import AdminPortal from './components/AdminPortal';
 import { LoginModal, SuccessModal, Toast } from './components/Modals';
-import { getVerifiedTxHash, isVerifiedHash } from './utils/verifiedTransactions';
+import { isValidTxHash } from './utils/formatters';
+
+// Storage migration helpers (transparent migration from karometa -> xpr3t)
+const getStorageItem = (key, fallback = null) => {
+  try {
+    const modernKey = `xpr3t_${key}`;
+    const legacyKey = `karometa_${key}`;
+    const modernVal = localStorage.getItem(modernKey);
+    if (modernVal !== null) return modernVal;
+    const legacyVal = localStorage.getItem(legacyKey);
+    if (legacyVal !== null) {
+      localStorage.setItem(modernKey, legacyVal);
+      localStorage.removeItem(legacyKey);
+      return legacyVal;
+    }
+    return fallback;
+  } catch (e) {
+    return fallback;
+  }
+};
+
+const setStorageItem = (key, value) => {
+  try {
+    localStorage.setItem(`xpr3t_${key}`, value);
+    localStorage.removeItem(`karometa_${key}`);
+  } catch (e) {}
+};
+
+const removeStorageItem = (key) => {
+  try {
+    localStorage.removeItem(`xpr3t_${key}`);
+    localStorage.removeItem(`karometa_${key}`);
+  } catch (e) {}
+};
 
 export default function App() {
   // Navigation & Route states
@@ -31,7 +64,7 @@ export default function App() {
   const [globalSignals, setGlobalSignals] = useState([]);
   const [ledgerSignals, setLedgerSignals] = useState(() => {
     try {
-      const cached = localStorage.getItem('karometa_cached_ledger_v2');
+      const cached = getStorageItem('cached_ledger_v2');
       return cached ? JSON.parse(cached) : [];
     } catch (e) {
       return [];
@@ -39,7 +72,7 @@ export default function App() {
   });
   const [totalSettledCount, setTotalSettledCount] = useState(() => {
     try {
-      const cached = localStorage.getItem('karometa_cached_total');
+      const cached = getStorageItem('cached_total');
       return cached ? parseInt(cached, 10) : 0;
     } catch (e) {
       return 0;
@@ -49,7 +82,7 @@ export default function App() {
   const [hasMoreTrades, setHasMoreTrades] = useState(true);
   const [isFetchingInitialLedger, setIsFetchingInitialLedger] = useState(() => {
     try {
-      return !localStorage.getItem('karometa_cached_ledger');
+      return !getStorageItem('cached_ledger');
     } catch (e) {
       return true;
     }
@@ -143,6 +176,7 @@ export default function App() {
         if (data.trades && data.trades.length > 0) {
           const formatted = data.trades.map((t) => {
             const d = typeof t.trade_details === 'string' ? JSON.parse(t.trade_details) : t.trade_details;
+            const validHash = (d.txHash && isValidTxHash(d.txHash)) ? d.txHash.trim() : (d.calculation?.txHash && isValidTxHash(d.calculation.txHash) ? d.calculation.txHash.trim() : null);
             return {
               id: t.id,
               type: d.type || 'Arbitrage',
@@ -154,7 +188,7 @@ export default function App() {
               profitAmount: parseFloat(t.profit_amount),
               tradeAmount: parseFloat(t.trade_amount),
               createdAt: t.created_at,
-              txHash: isVerifiedHash(d.txHash) ? d.txHash : getVerifiedTxHash(d.network || 'Ethereum', d.routePath || '', t.id),
+              txHash: validHash,
             };
           });
           setPersonalSignals(formatted);
@@ -171,7 +205,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('karometa_user_id');
+    removeStorageItem('user_id');
     setUserProfile(null);
     setPersonalSignals([]);
     setCurrentView('ledger');
@@ -194,12 +228,11 @@ export default function App() {
       if (data.success && Array.isArray(data.trades)) {
         if (data.totalTrades !== undefined) {
           setTotalSettledCount(data.totalTrades);
-          try {
-            localStorage.setItem('karometa_cached_total', data.totalTrades.toString());
-          } catch (e) {}
+          setStorageItem('cached_total', data.totalTrades.toString());
         }
         const formatted = data.trades.map((t) => {
           const d = typeof t.trade_details === 'string' ? JSON.parse(t.trade_details) : t.trade_details;
+          const validHash = (d.txHash && isValidTxHash(d.txHash)) ? d.txHash.trim() : (d.calculation?.txHash && isValidTxHash(d.calculation.txHash) ? d.calculation.txHash.trim() : null);
           return {
             id: t.id,
             type: d.type || 'Arbitrage',
@@ -211,15 +244,13 @@ export default function App() {
             profitAmount: parseFloat(t.profit_amount),
             tradeAmount: parseFloat(t.trade_amount),
             createdAt: t.created_at,
-            txHash: isVerifiedHash(d.txHash) ? d.txHash : getVerifiedTxHash(d.network || 'Ethereum', d.routePath || '', t.id),
+            txHash: validHash,
           };
         });
 
         // Cache first 50 records for instant 0ms render on next page load
         if (!isAppend && formatted.length > 0) {
-          try {
-            localStorage.setItem('karometa_cached_ledger_v2', JSON.stringify(formatted.slice(0, 50)));
-          } catch (e) {}
+          setStorageItem('cached_ledger_v2', JSON.stringify(formatted.slice(0, 50)));
         }
 
         setLedgerSignals((prev) => {
@@ -296,11 +327,12 @@ export default function App() {
       }
     }
 
-    const savedUid = localStorage.getItem('karometa_user_id');
+    const savedUid = getStorageItem('user_id');
     const effectiveUid = uid || savedUid;
 
     if (effectiveUid) {
       if (uid) setIsReadOnlyProfile(true);
+      setStorageItem('user_id', effectiveUid);
       fetchProfile(effectiveUid);
     }
   }, []);
@@ -353,7 +385,7 @@ export default function App() {
           if (payload.type === 'USER_HISTORY' && Array.isArray(payload.trades)) {
             const sanitized = payload.trades.map(tr => ({
               ...tr,
-              txHash: isVerifiedHash(tr.txHash) ? tr.txHash : getVerifiedTxHash(tr.network || 'Ethereum', tr.routePath || '', tr.id)
+              txHash: (tr.txHash && isValidTxHash(tr.txHash)) ? tr.txHash.trim() : (tr.calculation?.txHash && isValidTxHash(tr.calculation.txHash) ? tr.calculation.txHash.trim() : null)
             }));
             setPersonalSignals(sanitized);
             return;
@@ -362,9 +394,10 @@ export default function App() {
           // 3. Live Executed Trade Event (Typed message)
           if (payload.type === 'LIVE_TRADE' && payload.trade) {
             const rawTrade = payload.trade;
+            const validHash = (rawTrade.txHash && isValidTxHash(rawTrade.txHash)) ? rawTrade.txHash.trim() : (rawTrade.calculation?.txHash && isValidTxHash(rawTrade.calculation.txHash) ? rawTrade.calculation.txHash.trim() : null);
             const trade = {
               ...rawTrade,
-              txHash: isVerifiedHash(rawTrade.txHash) ? rawTrade.txHash : getVerifiedTxHash(rawTrade.network || 'Ethereum', rawTrade.routePath || '', rawTrade.id)
+              txHash: validHash
             };
             setTotalSettledCount((prev) => prev + 1);
             setLedgerSignals((prev) => {
@@ -496,7 +529,7 @@ export default function App() {
       }
 
       // Step 2: Instant UI transition - Save session, close modal and show Personal Ledger
-      localStorage.setItem('karometa_user_id', targetUserId);
+      setStorageItem('user_id', targetUserId);
       setIsLoginOpen(false);
       setCurrentView('ledger');
 
@@ -877,7 +910,7 @@ export default function App() {
                   color: 'var(--text-secondary)',
                 }}
               >
-                <div style={{ fontSize: '2.2rem', marginBottom: '12px', filter: 'drop-shadow(0 0 16px rgba(0, 163, 255, 0.7))' }}>⚡</div>
+                <div style={{ fontSize: '2rem', marginBottom: '10px' }}>⚡</div>
                 <div style={{ fontFamily: 'var(--font-tech)', fontSize: '1.1rem', color: '#FFFFFF', fontWeight: '700' }}>
                   {currentView === 'global'
                     ? 'Scanning High-Frequency Arbitrage Conduits...'

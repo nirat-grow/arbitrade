@@ -99,7 +99,7 @@ export const NexusLogo = ({ size = 46, className = '' }) => (
       <line x1="69" y1="50" x2="83" y2="50" stroke="rgba(234, 179, 8, 0.35)" strokeWidth="1.2" strokeLinecap="round" />
 
       {/* ========================================================
-          ICONIC FACETED 3D "K" MONOGRAM (KAROMETA CORE)
+          ICONIC FACETED 3D MONOGRAM (XPR3T / NEXUS CORE)
           ======================================================== */}
 
       {/* 1. Vertical Gold Pillar (Left Stem of "K") */}

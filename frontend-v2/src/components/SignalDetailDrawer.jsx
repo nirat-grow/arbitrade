@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { formatNetProfit, formatUSD, formatROI, shortenAddress, getDeterministicTxHash, copyToClipboard } from '../utils/formatters';
+import { formatNetProfit, formatUSD, formatROI, shortenAddress, getDeterministicTxHash, isValidTxHash, copyToClipboard } from '../utils/formatters';
 
 const EXPLORER_URLS = {
   Ethereum: 'https://etherscan.io/address/',
@@ -90,11 +90,14 @@ export const SignalDetailDrawer = React.memo(({ data, isTable = false }) => {
 
   const [copiedTx, setCopiedTx] = useState(false);
   const txHash = getDeterministicTxHash(data);
-  const explorerTxUrl = data.network && EXPLORER_TX_URLS[data.network] ? EXPLORER_TX_URLS[data.network] + txHash : null;
+  const hasValidTx = Boolean(txHash && isValidTxHash(txHash));
+  const isExecuted = data.timeLabel === 'Executed' || Boolean(data.isLedgerTrade);
+  const explorerTxUrl = hasValidTx && data.network && EXPLORER_TX_URLS[data.network] ? EXPLORER_TX_URLS[data.network] + txHash : null;
 
   const handleCopyTx = async (e) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!txHash) return;
     try {
       await copyToClipboard(txHash);
     } catch (err) {
@@ -149,28 +152,40 @@ export const SignalDetailDrawer = React.memo(({ data, isTable = false }) => {
             <span className="panel-title-beacon" />
             <span className="panel-title-text">FINANCIAL SETTLEMENT TELEMETRY</span>
           </div>
-          <span className="panel-kicker-tag">REAL-TIME ATTESTED</span>
+          <span className={`panel-kicker-tag ${hasValidTx ? 'verified' : 'active'}`}>
+            {hasValidTx ? 'ON-CHAIN VERIFIED' : (isExecuted ? 'PENDING VERIFICATION' : 'DATA FEED ACTIVE')}
+          </span>
         </div>
 
         {/* Institutional On-Chain Attestation Bar */}
         <div className="drawer-tx-attestation-bar">
           <div className="tx-attestation-left">
-            <span className="tx-verified-dot" />
-            <span className="tx-attestation-label">TRANSACTION HASH:</span>
-            <span className="tx-hash-mono mono-text" title={`Full On-Chain Hash: ${txHash}`}>
-              {shortenAddress(txHash, 6)}
+            <span className={`tx-verified-dot ${hasValidTx ? 'verified' : 'pending'}`} />
+            <span className="tx-attestation-label">
+              {hasValidTx ? 'TRANSACTION HASH:' : 'PROOF STATE:'}
             </span>
+            {hasValidTx ? (
+              <span className="tx-hash-mono mono-text" title={`Full On-Chain Hash: ${txHash}`}>
+                {shortenAddress(txHash, 6)}
+              </span>
+            ) : (
+              <span className="tx-hash-mono mono-text" style={{ color: 'var(--text-muted)' }}>
+                {isExecuted ? 'Awaiting Receipt' : 'Pre-Execution Opportunity'}
+              </span>
+            )}
           </div>
           <div className="tx-attestation-actions">
-            <button
-              type="button"
-              className={`tx-copy-btn ${copiedTx ? 'copied' : ''}`}
-              onClick={handleCopyTx}
-              title={copiedTx ? "Copied to clipboard" : "Copy Transaction Hash"}
-            >
-              {copiedTx ? '✓ Copied' : '⧉ Copy Hash'}
-            </button>
-            {explorerTxUrl && (
+            {hasValidTx && (
+              <button
+                type="button"
+                className={`tx-copy-btn ${copiedTx ? 'copied' : ''}`}
+                onClick={handleCopyTx}
+                title={copiedTx ? "Copied to clipboard" : "Copy Transaction Hash"}
+              >
+                {copiedTx ? '✓ Copied' : '⧉ Copy Hash'}
+              </button>
+            )}
+            {explorerTxUrl ? (
               <a
                 href={explorerTxUrl}
                 target="_blank"
@@ -186,6 +201,10 @@ export const SignalDetailDrawer = React.memo(({ data, isTable = false }) => {
                   <line x1="10" y1="14" x2="21" y2="3" />
                 </svg>
               </a>
+            ) : (
+              <span className="tx-explorer-link disabled" style={{ opacity: 0.5, cursor: 'not-allowed' }} title="Explorer proof unlocks upon on-chain confirmation">
+                <span>No Receipt</span>
+              </span>
             )}
           </div>
         </div>
@@ -227,11 +246,11 @@ export const SignalDetailDrawer = React.memo(({ data, isTable = false }) => {
             <div className="tile-hover-ambient-glow emerald" />
           </div>
 
-          {/* Tile 3: Estimated Gas */}
+          {/* Tile 3: Gas Fee */}
           <div className="telemetry-tile tile-gas">
             <div className="tile-top-row">
-              <span className="tile-label">Estimated Gas</span>
-              <div className="tile-icon-badge amber" title="Priority Network Fuel">
+              <span className="tile-label">{isExecuted && hasValidTx ? 'Actual Network Fee' : 'Estimated Gas'}</span>
+              <div className="tile-icon-badge amber" title="Execution Cost">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                 </svg>
@@ -239,15 +258,15 @@ export const SignalDetailDrawer = React.memo(({ data, isTable = false }) => {
             </div>
             <div className="tile-val-wrap">
               <span className="tile-value mono-text val-amber">{formatUSD(calc.gasUsd, 4)}</span>
-              <span className="tile-subtag amber">Priority</span>
+              <span className="tile-subtag amber">{isExecuted && hasValidTx ? 'Receipt Fee' : 'Estimated'}</span>
             </div>
             <div className="tile-hover-ambient-glow amber" />
           </div>
 
-          {/* Tile 4: Flash Loan Fee */}
+          {/* Tile 4: Route / Protocol Fee */}
           <div className="telemetry-tile tile-fee">
             <div className="tile-top-row">
-              <span className="tile-label">Flash Loan Fee</span>
+              <span className="tile-label">{data.type === 'Flash-loan' ? 'Flash Loan Fee' : 'Protocol Fee'}</span>
               <div className="tile-icon-badge violet" title="Pool Liquidity Protocol Fee">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
@@ -257,7 +276,7 @@ export const SignalDetailDrawer = React.memo(({ data, isTable = false }) => {
             </div>
             <div className="tile-val-wrap">
               <span className="tile-value mono-text val-violet">{formatUSD(calc.flashFee, 4)}</span>
-              <span className="tile-subtag violet">0.05% Fee</span>
+              <span className="tile-subtag violet">{data.type === 'Flash-loan' ? 'Borrow Fee' : 'DEX Fee'}</span>
             </div>
             <div className="tile-hover-ambient-glow violet" />
           </div>
@@ -270,13 +289,15 @@ export const SignalDetailDrawer = React.memo(({ data, isTable = false }) => {
             <div className="net-card-left">
               <div className="net-kicker-row">
                 <span className="net-kicker-beacon" />
-                <span className="net-card-label">NET REALIZED YIELD</span>
+                <span className="net-card-label">
+                  {isExecuted && hasValidTx ? 'NET REALIZED PROFIT' : 'ESTIMATED P&L'}
+                </span>
               </div>
               <div className="net-card-value mono-text">{netDisplay}</div>
             </div>
             <div className="net-card-right">
               <div className="net-roi-group">
-                <span className="net-roi-label">EST. ROI</span>
+                <span className="net-roi-label">{isExecuted && hasValidTx ? 'REALIZED ROI' : 'EST. ROI'}</span>
                 <span className="net-roi-value mono-text">{formatROI(calc.roi)}</span>
               </div>
               <div className={`net-status-pill ${isProfit ? 'positive' : 'negative'}`}>

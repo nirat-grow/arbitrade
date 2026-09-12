@@ -1,5 +1,4 @@
 import React from 'react';
-import xpr3tLogo from '../assets/xpr3t-full-logo.png';
 
 export const Navbar = ({
   userProfile,
@@ -15,18 +14,8 @@ export const Navbar = ({
 }) => {
   return (
     <header className="nexus-navbar">
-      {/* Brand Left */}
-      <div 
-        className="nav-brand" 
-        onClick={() => (isAdminRoute ? onOpenAdmin(false) : onViewChange('global'))}
-        title="XPR3T • Trust, Access & Economic Stake"
-      >
-        <img
-          src={xpr3tLogo}
-          alt="XPR3T - Trust, Access & Economic Stake"
-          className="xpr3t-navbar-logo"
-        />
-      </div>
+      {/* Brand Left (Logo Removed) */}
+      <div className="nav-brand-spacer" />
 
       {/* Center Nav Switcher: Global Matrix vs Personal/Execution Ledger */}
       {!isAdminRoute && (
@@ -45,7 +34,7 @@ export const Navbar = ({
             <span className="mode-pip" />
             {userProfile ? (
               <>
-                Personal Ledger <span style={{ color: 'var(--cyber-blue)' }}>•</span>
+                Personal Ledger <span style={{ color: 'var(--gold-bright)' }}>•</span>
               </>
             ) : (
               'Execution Ledger'
@@ -102,9 +91,9 @@ export const Navbar = ({
                   <span
                     className="user-profit-pill"
                     style={{ 
-                      background: isCooldown ? 'rgba(0, 163, 255, 0.15)' : 'rgba(16, 185, 129, 0.15)', 
-                      borderColor: isCooldown ? 'var(--cyber-blue)' : 'var(--profit-green)',
-                      color: isCooldown ? 'var(--cyber-blue)' : 'var(--profit-green)'
+                      background: isCooldown ? 'rgba(234, 179, 8, 0.15)' : 'rgba(16, 185, 129, 0.15)', 
+                      borderColor: isCooldown ? 'var(--gold-core)' : 'var(--profit-green)',
+                      color: isCooldown ? 'var(--gold-bright)' : 'var(--profit-green)'
                     }}
                     title={isCooldown ? `Daily 24-hour limit active. Next trade unlocks at ${new Date(userProfile.endTime).toLocaleTimeString()}` : `+$${Number(userProfile.currentProfit).toFixed(2)}`}
                   >
@@ -114,7 +103,7 @@ export const Navbar = ({
               } else {
                 return (
                   <button
-                    className="nexus-btn nexus-btn-cyber"
+                    className="nexus-btn nexus-btn-gold"
                     style={{ padding: '4px 12px', fontSize: '0.74rem' }}
                     onClick={() => onStartTrade(userProfile.userId)}
                   >
@@ -126,7 +115,7 @@ export const Navbar = ({
           </div>
         ) : (
           // Start button - temporarily hidden as requested
-          <button className="nav-btn-start" onClick={onOpenLogin} title="Launch Karometa Trading Engine" style={{ display: 'none' }}>
+          <button className="nav-btn-start" onClick={onOpenLogin} title="Launch XPR3T Trading Engine" style={{ display: 'none' }}>
             <span className="btn-shimmer" />
             <svg className="btn-icon-bolt" viewBox="0 0 24 24" fill="currentColor">
               <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
@@ -139,7 +128,7 @@ export const Navbar = ({
         <button
           className={`nav-btn-admin ${isAdminRoute ? 'active' : ''}`}
           onClick={() => onOpenAdmin(!isAdminRoute)}
-          title={isAdminRoute ? "Return to Terminal" : "Access Karometa Admin Console"}
+          title={isAdminRoute ? "Return to Terminal" : "Access XPR3T Admin Console"}
           style={{ display: 'none' }}
         >
           <span className="admin-status-dot" />

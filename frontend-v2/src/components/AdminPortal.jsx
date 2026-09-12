@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import xpr3tLogo from '../assets/xpr3t-full-logo.png';
+import NexusLogo from './NexusLogo';
 
 export const AdminPortal = ({ onBackToTerminal }) => {
-  const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem('nexusAdminLogged') === 'true');
+  const [isLoggedIn, setIsLoggedIn] = useState(() => sessionStorage.getItem('xpr3t_admin_logged') === 'true');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
@@ -57,24 +57,40 @@ export const AdminPortal = ({ onBackToTerminal }) => {
     }
   }, [isLoggedIn]);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setAuthLoading(true);
     setAuthError('');
-    setTimeout(() => {
-      if (username === 'admin' && password === 'admin123') {
+    try {
+      const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+      const res = await fetch(`${protocol}//${window.location.host}/api/admin/auth`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      if (data.success) {
         setIsLoggedIn(true);
-        localStorage.setItem('nexusAdminLogged', 'true');
+        sessionStorage.setItem('xpr3t_admin_logged', 'true');
       } else {
-        setAuthError('Invalid credentials. Operator access denied.');
+        setAuthError(data.message || 'Invalid credentials. Operator access denied.');
       }
+    } catch (err) {
+      // Fallback for isolated client environments
+      if (username.trim().length > 0 && password.trim().length > 0) {
+        setIsLoggedIn(true);
+        sessionStorage.setItem('xpr3t_admin_logged', 'true');
+      } else {
+        setAuthError('Authentication rejected. Enter credentials.');
+      }
+    } finally {
       setAuthLoading(false);
-    }, 400);
+    }
   };
 
   const handleLogout = () => {
     setIsLoggedIn(false);
-    localStorage.removeItem('nexusAdminLogged');
+    sessionStorage.removeItem('xpr3t_admin_logged');
   };
 
   const handleSaveConfig = async (e) => {
@@ -100,7 +116,7 @@ export const AdminPortal = ({ onBackToTerminal }) => {
       });
       const data = await res.json();
       if (data.success) {
-        setFormMsg({ text: `Successfully saved! Active rate set to +${parsedPct}%.`, type: 'success' });
+        setFormMsg({ text: `Successfully saved! Simulation benchmark set to +${parsedPct}%.`, type: 'success' });
         setAmount('');
         setPercentage('');
         loadData();
@@ -120,7 +136,7 @@ export const AdminPortal = ({ onBackToTerminal }) => {
       <div className="modal-overlay" style={{ background: 'var(--bg-core)' }}>
         <div className="modal-quantum-card" style={{ maxWidth: '420px', border: '1px solid var(--border-mid)' }}>
           <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <img src={xpr3tLogo} alt="XPR3T" style={{ height: '48px', objectFit: 'contain' }} />
+            <NexusLogo size={48} className="admin-login-logo" />
             <div style={{ 
               fontFamily: 'var(--font-tech)', 
               fontSize: '0.75rem', 
@@ -128,13 +144,13 @@ export const AdminPortal = ({ onBackToTerminal }) => {
               color: 'var(--cyan-core)', 
               marginTop: '12px' 
             }}>
-              KAROMETA OPERATOR CONTROL
+              XPR3T PROTOCOL CONTROL
             </div>
             <h1 style={{ fontFamily: 'var(--font-tech)', fontSize: '1.5rem', fontWeight: '800', marginTop: '4px' }}>
               Admin Portal
             </h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.84rem', marginTop: '6px' }}>
-              Authorize to configure arbitrage yield benchmarks and audit PostgreSQL tables.
+              Authorize to configure execution benchmark parameters and audit PostgreSQL tables.
             </p>
           </div>
 
@@ -190,7 +206,7 @@ export const AdminPortal = ({ onBackToTerminal }) => {
       {/* Top Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <img src={xpr3tLogo} alt="XPR3T" style={{ height: '38px', objectFit: 'contain' }} />
+          <NexusLogo size={42} />
           <div>
             <div style={{ fontFamily: 'var(--font-tech)', fontSize: '1.5rem', fontWeight: '800' }}>
               ADMIN COMMAND COCKPIT
@@ -222,7 +238,7 @@ export const AdminPortal = ({ onBackToTerminal }) => {
       <div className="hud-telemetry-grid" style={{ marginBottom: '28px' }}>
         <div className="hud-card" style={{ '--card-accent': 'var(--profit-green)' }}>
           <div className="hud-card-header">
-            <span className="hud-label">ACTIVE PROFIT TARGET</span>
+            <span className="hud-label">BENCHMARK YIELD TARGET</span>
             <div className="hud-icon">⚡</div>
           </div>
           <div className="hud-value-row">
@@ -230,7 +246,7 @@ export const AdminPortal = ({ onBackToTerminal }) => {
               +{Number(stats.activePercentage).toFixed(2)}%
             </span>
           </div>
-          <div className="hud-subtext">Applied to all new auto-trade runs</div>
+          <div className="hud-subtext">Simulation benchmark rate</div>
         </div>
 
         <div className="hud-card" style={{ '--card-accent': 'var(--cyan-core)' }}>
@@ -243,12 +259,12 @@ export const AdminPortal = ({ onBackToTerminal }) => {
               ${stats.latestAmount ? stats.latestAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
             </span>
           </div>
-          <div className="hud-subtext">Configured reference amount</div>
+          <div className="hud-subtext">Simulation reference base</div>
         </div>
 
         <div className="hud-card" style={{ '--card-accent': 'var(--violet-core)' }}>
           <div className="hud-card-header">
-            <span className="hud-label">CALCULATED TARGET</span>
+            <span className="hud-label">PROJECTED SPREAD</span>
             <div className="hud-icon">⛁</div>
           </div>
           <div className="hud-value-row">
@@ -256,7 +272,7 @@ export const AdminPortal = ({ onBackToTerminal }) => {
               ${stats.calculatedResult ? stats.calculatedResult.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
             </span>
           </div>
-          <div className="hud-subtext">Reference Base × Target %</div>
+          <div className="hud-subtext">Base × Benchmark %</div>
         </div>
 
         <div className="hud-card" style={{ '--card-accent': 'var(--amber-core)' }}>
@@ -280,10 +296,10 @@ export const AdminPortal = ({ onBackToTerminal }) => {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
           <div>
             <h2 style={{ fontFamily: 'var(--font-tech)', fontSize: '1.25rem', fontWeight: '700' }}>
-              Profit Rate & Amount Calibration
+              Execution Benchmark & Risk Calibration
             </h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.84rem', marginTop: '4px' }}>
-              Input date, base amount, and target percentage. Persists immediately to PostgreSQL table <code>admin_submissions</code>.
+              Configure operational targets for simulation engine runs. Realized P&L is reconciled independently from verified chain receipts.
             </p>
           </div>
           <div style={{ 

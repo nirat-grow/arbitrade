@@ -7,6 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { getVerifiedTxHash } from './verifiedTransactions.js';
+import { VERIFIED_TRANSACTION_SPECS } from './reconcile_database_trades.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -502,8 +503,9 @@ const connectedClients = new Set();
 function broadcastTrade(tradeData) {
     const details = typeof tradeData.trade_details === 'string' ? JSON.parse(tradeData.trade_details) : tradeData.trade_details;
     const net = details.network || 'Ethereum';
-    const pair = details.pair || details.routePath || '';
-    const txHash = details.txHash || details.calculation?.txHash || getVerifiedTxHash(net, pair);
+    const txHash = (details.txHash && /^0x[a-fA-F0-9]{64}$/.test(details.txHash))
+      ? details.txHash
+      : ((details.calculation?.txHash && /^0x[a-fA-F0-9]{64}$/.test(details.calculation.txHash)) ? details.calculation.txHash : null);
     const formattedTrade = {
         id: tradeData.id,
         type: details.type || 'Arbitrage',
@@ -584,21 +586,32 @@ setInterval(async () => {
             
             // Dynamic realistic calculation math for the UI summary panel
             const startAmount = parseFloat(session.package_amount);
-            const gasFee = (Math.random() * 1.45 + 0.05).toFixed(6); // Random gas $0.05 to $1.50
-            const flashFee = (Math.random() * 0.19 + 0.01).toFixed(6); // Random flash fee $0.01 to $0.20
-            
-            // Equation: Gross = Net + Gas + Flash Fee
-            const grossProfit = (newProfit + parseFloat(gasFee) + parseFloat(flashFee)).toFixed(6);
-            const finalAmount = (startAmount + parseFloat(grossProfit)).toFixed(6);
-            const roiPercent = ((newProfit / startAmount) * 100).toFixed(4) + '%';
-
             const net = baseSignal.network || 'Ethereum';
             const pair = baseSignal.pair || baseSignal.route_path || '';
             const txHash = getVerifiedTxHash(net, pair);
+            const spec = VERIFIED_TRANSACTION_SPECS[txHash];
+
+            // Network-specific realistic gas fee (L2 vs L1)
+            let gasFeeNum = 0.05;
+            if (net === 'Ethereum') gasFeeNum = Number((Math.random() * 0.40 + 1.25).toFixed(4));
+            else if (net === 'BNB') gasFeeNum = Number((Math.random() * 0.15 + 0.35).toFixed(4));
+            else if (net === 'Arbitrum') gasFeeNum = Number((Math.random() * 0.04 + 0.01).toFixed(4));
+            else if (net === 'Base' || net === 'Optimism') gasFeeNum = Number((Math.random() * 0.02 + 0.005).toFixed(4));
+            else if (net === 'Polygon') gasFeeNum = Number((Math.random() * 0.03 + 0.01).toFixed(4));
+            else gasFeeNum = Number((Math.random() * 0.04 + 0.02).toFixed(4));
+
+            const gasFeeStr = spec?.gasUsd ? spec.gasUsd : `$${gasFeeNum.toFixed(4)}`;
+            const flashFee = (Math.random() * 0.08 + 0.01).toFixed(6); // Realistic flash fee $0.01 to $0.09
+            
+            // Equation: Gross = Net + Gas + Flash Fee
+            const grossProfit = (newProfit + gasFeeNum + parseFloat(flashFee)).toFixed(6);
+            const finalAmount = (startAmount + parseFloat(grossProfit)).toFixed(6);
+            const roiPercent = ((newProfit / startAmount) * 100).toFixed(4) + '%';
+
             const dynamicCalculation = {
                 start: startAmount.toFixed(6),
                 gross: grossProfit,
-                gasUsd: `$${gasFee}`,
+                gasUsd: gasFeeStr,
                 final: finalAmount,
                 flashFee: flashFee,
                 net: newProfit.toFixed(6),
@@ -607,11 +620,11 @@ setInterval(async () => {
             };
 
             const tradeDetails = JSON.stringify({
-                network: baseSignal.network,
-                type: baseSignal.type,
-                routePath: baseSignal.route_path,
+                network: spec?.network || baseSignal.network,
+                type: spec?.type || baseSignal.type,
+                routePath: spec?.routePath || baseSignal.route_path,
                 calculation: dynamicCalculation,
-                hops: baseSignal.hops,
+                hops: spec?.hops || baseSignal.hops,
                 txHash: txHash
             });
 

@@ -69,13 +69,13 @@ export const PersonalDashboard = ({ userProfile, onStartTrade }) => {
                 fontFamily: 'var(--font-mono)',
                 color: userProfile.sessionActive 
                   ? 'var(--profit-green)' 
-                  : (isCooldown ? 'var(--cyber-blue)' : 'var(--amber-core)'),
+                  : (isCooldown ? 'var(--gold-bright)' : 'var(--amber-core)'),
                 padding: '2px 8px',
                 borderRadius: '10px',
                 background: userProfile.sessionActive 
                   ? 'var(--profit-bg)' 
-                  : (isCooldown ? 'rgba(0, 163, 255, 0.12)' : 'var(--amber-bg)'),
-                border: isCooldown ? '1px solid rgba(0, 163, 255, 0.28)' : 'none'
+                  : (isCooldown ? 'rgba(234, 179, 8, 0.12)' : 'var(--amber-bg)'),
+                border: isCooldown ? '1px solid rgba(234, 179, 8, 0.28)' : 'none'
               }}
             >
               {userProfile.sessionActive 
@@ -95,13 +95,13 @@ export const PersonalDashboard = ({ userProfile, onStartTrade }) => {
           <div className="ledger-stream-wrapper">
             <div className="ledger-stream-header">
               <div className="stream-label-group">
-                <span className="stream-live-pip" style={{ background: isCooldown ? 'var(--cyber-blue)' : undefined }} />
+                <span className="stream-live-pip" style={{ background: isCooldown ? 'var(--gold-bright)' : undefined }} />
                 <span className="stream-label">
                   {isCooldown ? 'Daily Harvest Secured:' : 'Session Arbitrage Yield:'}
                 </span>
               </div>
               <div className="stream-metrics-group">
-                <span className="stream-yield-val" style={{ color: isCooldown ? 'var(--cyber-blue)' : undefined }}>
+                <span className="stream-yield-val" style={{ color: isCooldown ? 'var(--gold-bright)' : undefined }}>
                   +{currentPct.toFixed(2)}%
                 </span>
                 <span className="stream-status-pill">
@@ -133,12 +133,12 @@ export const PersonalDashboard = ({ userProfile, onStartTrade }) => {
 
         {/* Right: 24h Countdown Clock or Launch Action */}
         <div className="session-timer-box">
-          <div style={{ fontSize: '0.72rem', color: isCooldown ? 'var(--cyber-blue)' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <div style={{ fontSize: '0.72rem', color: isCooldown ? 'var(--gold-bright)' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             {userProfile.sessionActive 
               ? 'Session Expiration' 
               : (isCooldown ? 'Next Session Unlocks In' : 'Daily 24H Window')}
           </div>
-          <div className="timer-digits" style={{ color: isCooldown ? 'var(--cyber-blue)' : undefined }}>
+          <div className="timer-digits" style={{ color: isCooldown ? 'var(--gold-bright)' : undefined }}>
             {userProfile.sessionActive ? countdown : (isCooldown ? countdown : '24:00:00')}
           </div>
           <div style={{ marginTop: '12px' }}>
@@ -149,13 +149,13 @@ export const PersonalDashboard = ({ userProfile, onStartTrade }) => {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '6px',
-                  background: 'rgba(0, 163, 255, 0.1)',
-                  border: '1px solid rgba(0, 163, 255, 0.28)',
+                  background: 'rgba(234, 179, 8, 0.1)',
+                  border: '1px solid rgba(234, 179, 8, 0.28)',
                   padding: '8px 12px',
                   borderRadius: '10px',
                   fontSize: '0.74rem',
                   fontFamily: 'var(--font-tech)',
-                  color: 'var(--cyber-blue)',
+                  color: 'var(--gold-bright)',
                   fontWeight: '600'
                 }}
               >
@@ -164,7 +164,7 @@ export const PersonalDashboard = ({ userProfile, onStartTrade }) => {
               </div>
             ) : canLaunch ? (
               <button
-                className="nexus-btn nexus-btn-cyber"
+                className="nexus-btn nexus-btn-gold"
                 style={{ width: '100%', fontSize: '0.8rem', padding: '10px 14px' }}
                 onClick={() => onStartTrade(userProfile.userId)}
               >

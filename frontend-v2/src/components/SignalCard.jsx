@@ -1,6 +1,6 @@
 import React from 'react';
 import SignalDetailDrawer from './SignalDetailDrawer';
-import { formatNetProfit, formatROI, shortenAddress, getDeterministicTxHash } from '../utils/formatters';
+import { formatNetProfit, formatROI, shortenAddress, getDeterministicTxHash, isValidTxHash } from '../utils/formatters';
 
 const NETWORK_COLORS = {
   Avalanche: { bg: 'rgba(232, 65, 66, 0.12)', border: 'rgba(232, 65, 66, 0.35)', color: '#FF5C5C', dot: '#E84142' },
@@ -15,16 +15,18 @@ export const SignalCard = React.memo(({ signal, isExpanded, onToggle }) => {
   if (!signal || !signal.calculation) return null;
 
   const txHash = getDeterministicTxHash(signal);
+  const hasValidTx = Boolean(txHash && isValidTxHash(txHash));
+  const isExecuted = signal.timeLabel === 'Executed' || Boolean(signal.isLedgerTrade);
   const netDisplay = formatNetProfit(signal.calculation.net, signal.profitAmount);
   const isProfit = !netDisplay.startsWith('-');
   const roiDisplay = formatROI(signal.calculation.roi);
   const roiNum = Math.abs(parseFloat(signal.calculation.roi) || 0);
 
   const netStyle = NETWORK_COLORS[signal.network] || {
-    bg: 'rgba(0, 163, 255, 0.1)',
-    border: 'rgba(0, 163, 255, 0.35)',
-    color: 'var(--cyber-blue)',
-    dot: 'var(--cyber-blue)',
+    bg: 'rgba(234, 179, 8, 0.1)',
+    border: 'rgba(234, 179, 8, 0.35)',
+    color: 'var(--gold-bright)',
+    dot: 'var(--gold-core)',
   };
 
   const handleCardToggle = (e) => {
@@ -53,11 +55,20 @@ export const SignalCard = React.memo(({ signal, isExpanded, onToggle }) => {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span className="execution-type-pill">
-            {signal.type?.toUpperCase() || 'ARBITRAGE'}
+          <span className={`execution-type-pill ${hasValidTx ? 'verified-pill' : (isExecuted ? 'pending-pill' : 'opp-pill')}`} style={{
+            fontSize: '0.66rem',
+            padding: '2px 7px',
+            borderRadius: '4px',
+            letterSpacing: '0.06em',
+            fontWeight: 700,
+            background: hasValidTx ? 'rgba(16, 185, 129, 0.14)' : (isExecuted ? 'rgba(245, 158, 11, 0.14)' : 'rgba(56, 189, 248, 0.12)'),
+            border: hasValidTx ? '1px solid rgba(16, 185, 129, 0.35)' : (isExecuted ? '1px solid rgba(245, 158, 11, 0.35)' : '1px solid rgba(56, 189, 248, 0.3)'),
+            color: hasValidTx ? '#34D399' : (isExecuted ? '#FBBF24' : '#38BDF8')
+          }}>
+            {hasValidTx ? 'VERIFIED' : (isExecuted ? 'PENDING' : 'OPPORTUNITY')}
           </span>
           <span className="signal-timestamp mono-text">
-            {signal.timeLabel || 'Active'}
+            {signal.timeLabel || (isExecuted ? 'Executed' : 'Live')}
           </span>
         </div>
       </div>
@@ -80,7 +91,7 @@ export const SignalCard = React.memo(({ signal, isExpanded, onToggle }) => {
       {/* Financial Metrics Row */}
       <div className="signal-financial-row">
         <div className="fin-metric">
-          <span className="fin-metric-label">NET ARBITRAGE</span>
+          <span className="fin-metric-label">{isExecuted && hasValidTx ? 'NET ARBITRAGE' : 'EST. SPREAD'}</span>
           <span className={`fin-metric-value mono-text ${isProfit ? 'profit' : 'loss'}`}>
             {netDisplay}
           </span>

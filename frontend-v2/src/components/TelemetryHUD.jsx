@@ -27,10 +27,10 @@ export const TelemetryHUD = ({ adminStats }) => {
       </div>
 
       {/* Card 2: Reference Pool */}
-      <div className="hud-card" style={{ '--card-accent': 'var(--cyber-blue)' }}>
+      <div className="hud-card" style={{ '--card-accent': 'var(--gold-core)' }}>
         <div className="hud-card-header">
           <span className="hud-label">REFERENCE LIQUIDITY BASE</span>
-          <div className="hud-icon" style={{ color: 'var(--cyber-blue)' }}>◈</div>
+          <div className="hud-icon" style={{ color: 'var(--gold-bright)' }}>◈</div>
         </div>
         <div className="hud-value-row">
           <span className="hud-value mono-text">
@@ -38,7 +38,7 @@ export const TelemetryHUD = ({ adminStats }) => {
           </span>
         </div>
         <div className="hud-subtext">
-          <span style={{ color: 'var(--cyber-blue)' }}>Calculated Target:</span>
+          <span style={{ color: 'var(--gold-bright)' }}>Calculated Target:</span>
           <span>${((refAmount * activePct) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
       </div>

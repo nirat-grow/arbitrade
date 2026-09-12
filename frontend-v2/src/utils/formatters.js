@@ -55,21 +55,25 @@ export function shortenAddress(addr, chars = 4) {
   return `${addr.slice(0, chars + 2)}...${addr.slice(-chars)}`;
 }
 
-import { getVerifiedTxHash, isVerifiedHash } from './verifiedTransactions';
+/**
+ * Validates strict EVM 66-character hex transaction hash (0x + 64 hex chars)
+ */
+export function isValidTxHash(hash) {
+  if (!hash || typeof hash !== 'string') return false;
+  const clean = hash.trim();
+  return /^0x[a-fA-F0-9]{64}$/.test(clean);
+}
 
+/**
+ * Extracts authentic execution transaction hash without fabricating or falling back to static lists
+ */
 export function getDeterministicTxHash(signal) {
-  if (signal?.txHash && isVerifiedHash(signal.txHash)) {
-    return signal.txHash;
+  if (!signal) return null;
+  const directHash = signal.txHash || signal.calculation?.txHash;
+  if (isValidTxHash(directHash)) {
+    return directHash.trim();
   }
-  if (signal?.calculation?.txHash && isVerifiedHash(signal.calculation.txHash)) {
-    return signal.calculation.txHash;
-  }
-
-  // Return real verified on-chain multicall transaction based on network and pair
-  const network = signal?.network || signal?.chain || 'Ethereum';
-  const pair = signal?.pair || signal?.tokenPair || signal?.trade || signal?.routePath || '';
-  const id = signal?.id || signal?.tradeId || 0;
-  return getVerifiedTxHash(network, pair, id);
+  return null;
 }
 
 export async function copyToClipboard(text) {

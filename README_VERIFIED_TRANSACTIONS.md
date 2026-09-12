@@ -205,11 +205,11 @@ Every single transaction hash listed below has been verified directly on the liv
 - **Block Explorer:** [Optimistic Etherscan](https://optimistic.etherscan.io)
 
 ### Verified Multicalls:
-1. **Pair:** `OP / USDT`  
-   - **DEX Routing:** Velodrome + Uniswap V3 Multicall  
-   - **ERC-20 Token Transfers:** **4 Transfers** (39 Logs)  
-   - **Tx Hash:** `0x516d07156658c506f635a37477f27e079b4c2e51d0e30bd60f822f27d297b503`  
-   - 🔗 **Direct Link:** [View on Optimistic Etherscan](https://optimistic.etherscan.io/tx/0x516d07156658c506f635a37477f27e079b4c2e51d0e30bd60f822f27d297b503)
+1. **Pair:** `OP / WETH`  
+   - **DEX Routing:** Uniswap V4 + Uniswap V3 StrategyExecutor Arbitrage  
+   - **ERC-20 Token Transfers:** **8 Transfers** (26 Logs)  
+   - **Tx Hash:** `0x642354b868d040239f1a72fe25b7a632dda6483da74888c639a63c7867e2d1ac`  
+   - 🔗 **Direct Link:** [View on Optimistic Etherscan](https://optimistic.etherscan.io/tx/0x642354b868d040239f1a72fe25b7a632dda6483da74888c639a63c7867e2d1ac)
 
 2. **Pair:** `WETH / OP`  
    - **DEX Routing:** Velodrome Route Multicall  

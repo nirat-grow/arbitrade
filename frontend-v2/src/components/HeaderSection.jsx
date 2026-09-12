@@ -102,7 +102,7 @@ export default function HeaderSection({ currentView, userProfile }) {
               </span>
               <span className="deck-kicker-sep">•</span>
               <span className="deck-kicker-tag">
-                {userProfile ? `NODE: ${userProfile.userId}` : 'MULTI-CHAIN ATTESTED'}
+                {userProfile ? `NODE: ${userProfile.userId}` : 'EXECUTION ARCHIVE'}
               </span>
             </div>
 
@@ -227,7 +227,7 @@ export default function HeaderSection({ currentView, userProfile }) {
             <div className="pod-footer-meta">
               <span className="pod-pulse-indicator">
                 <span className="pulse-beacon" />
-                <span className="pulse-text">LATENCY &lt; 14ms</span>
+                <span className="pulse-text">RPC STREAM • SYNCHRONIZED</span>
               </span>
             </div>
           </div>
@@ -242,7 +242,7 @@ export default function HeaderSection({ currentView, userProfile }) {
               #{blockNum.toLocaleString()}
             </div>
             <div className="pod-footer-meta">
-              <span className="pod-block-label">MULTI-CHAIN ATTESTED</span>
+              <span className="pod-block-label">MULTI-CHAIN CONSENSUS</span>
             </div>
           </div>
         </div>

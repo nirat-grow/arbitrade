@@ -51,11 +51,11 @@ export default function SignalEqualizer({ barCount = 28 }) {
         </div>
         <div className="spectrum-beacon-info">
           <div className="spectrum-kicker-row">
-            <span className="spectrum-beacon-title">SCANNER SIGNAL STRENGTH</span>
+            <span className="spectrum-beacon-title">MULTI-DEX ROUTE MONITOR</span>
           </div>
           <div className="spectrum-beacon-subtitle">
             <span className="live-feed-dot" />
-            42 POOLS POLLING • CONTINUOUS
+            CROSS-CHAIN LIQUIDITY TELEMETRY • ACTIVE
           </div>
         </div>
       </div>
@@ -94,13 +94,13 @@ export default function SignalEqualizer({ barCount = 28 }) {
                 <path d="M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm3 8H9V6a3 3 0 1 1 6 0v3z" />
               </svg>
             </span>
-            <span>STABLE ARRAY</span>
+            <span>FEED COHERENCE</span>
           </div>
         </div>
         <div className="spectrum-aux-meta">
-          <span className="meta-item">BAND: 2.4 GHz</span>
+          <span className="meta-item">FEED: EVM RPC</span>
           <span className="meta-sep">•</span>
-          <span className="meta-item">LATENCY &lt; 18ms</span>
+          <span className="meta-item">MONITOR: ACTIVE</span>
         </div>
       </div>
     </div>
