@@ -132,7 +132,7 @@ export default function App() {
   // Filters & Search
   const [selectedChain, setSelectedChain] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('roi'); // 'roi' | 'profit' | 'recent'
+  const [sortBy, setSortBy] = useState('recent'); // 'recent' | 'roi' | 'profit'
 
   // Connection & UI states
   const [wsConnected, setWsConnected] = useState(false);
@@ -604,7 +604,8 @@ export default function App() {
           const roiB = parseFloat(b.calculation?.roi) || 0;
           return roiB - roiA;
         }
-        return 0; // default recent order
+        // Default: newest first (highest id = most recent trade)
+        return (b.id || 0) - (a.id || 0);
       });
   }, [activeFeed, selectedChain, searchQuery, sortBy, expandedSignalId]);
 

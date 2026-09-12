@@ -538,54 +538,16 @@ setInterval(async () => {
         // 1. Deactivate expired sessions
         await dbClient.query("UPDATE auto_trade_sessions SET is_active = false WHERE end_time <= NOW() AND is_active = true");
 
-        // 2. Fetch active sessions
+        // 2. Fetch active sessions (for user-specific trades)
         const activeSessions = await dbClient.query("SELECT * FROM auto_trade_sessions WHERE is_active = true");
-        if (activeSessions.rows.length === 0) return;
 
-        // 3. Get a random realistic signal pattern
+        // 3. Get a random realistic signal pattern (used by both platform & user trades)
         const signalRes = await dbClient.query("SELECT * FROM arbitrage_signals ORDER BY RANDOM() LIMIT 1");
+        if (!signalRes.rows.length) return;
         const baseSignal = signalRes.rows[0];
 
-        // 4. Execute a slice of trade for each session
-        for (let session of activeSessions.rows) {
-            const targetProfit = parseFloat(session.target_profit);
-            const currentProfit = parseFloat(session.current_profit || 0);
-            
-            // 1 to 2 Hour Pace Calculation (Only Profit, No Loss)
-            const remainingProfit = targetProfit - currentProfit;
-            
-            let newProfit = 0;
-            let sessionComplete = false;
-
-            if (remainingProfit <= 0) {
-                // Target already hit! 
-                newProfit = 0;
-                sessionComplete = true;
-            } else {
-                // For 1-2 hours completion (60-120 mins) at 15 seconds per tick:
-                // Ticks for 2 hours = 120 mins * 4 ticks/min = 480 ticks
-                // Ticks for 1 hour = 60 mins * 4 ticks/min = 240 ticks
-                const minProfitPerTick = targetProfit / 480;
-                const maxProfitPerTick = targetProfit / 240;
-                
-                // Generate a purely POSITIVE random profit
-                newProfit = minProfitPerTick + (Math.random() * (maxProfitPerTick - minProfitPerTick));
-                
-                // If this jump puts us over the target, give exactly what's left and finish!
-                if (currentProfit + newProfit >= targetProfit) {
-                    newProfit = remainingProfit;
-                    sessionComplete = true;
-                }
-            }
-            
-            // Final safety cap
-            if (currentProfit + newProfit >= targetProfit) {
-                newProfit = targetProfit - currentProfit;
-                sessionComplete = true;
-            }
-            
-            // Dynamic realistic calculation math for the UI summary panel
-            const startAmount = parseFloat(session.package_amount);
+        // ===== PLATFORM LEDGER ENGINE: Always generate a continuous trade for the live Execution Ledger =====
+        {
             const net = baseSignal.network || 'Ethereum';
             const pair = baseSignal.pair || baseSignal.route_path || '';
             const txHash = getVerifiedTxHash(net, pair);
@@ -600,21 +562,23 @@ setInterval(async () => {
             else if (net === 'Polygon') gasFeeNum = Number((Math.random() * 0.03 + 0.01).toFixed(4));
             else gasFeeNum = Number((Math.random() * 0.04 + 0.02).toFixed(4));
 
+            // Realistic platform trade amounts ($500 - $25,000 range)
+            const platformTradeAmount = Number((Math.random() * 24500 + 500).toFixed(2));
+            const platformNetProfit = Number((Math.random() * 0.12 + 0.02).toFixed(6)); // $0.02 to $0.14 per tick
+
             const gasFeeStr = spec?.gasUsd ? spec.gasUsd : `$${gasFeeNum.toFixed(4)}`;
-            const flashFee = (Math.random() * 0.08 + 0.01).toFixed(6); // Realistic flash fee $0.01 to $0.09
-            
-            // Equation: Gross = Net + Gas + Flash Fee
-            const grossProfit = (newProfit + gasFeeNum + parseFloat(flashFee)).toFixed(6);
-            const finalAmount = (startAmount + parseFloat(grossProfit)).toFixed(6);
-            const roiPercent = ((newProfit / startAmount) * 100).toFixed(4) + '%';
+            const flashFee = (Math.random() * 0.08 + 0.01).toFixed(6);
+            const grossProfit = (platformNetProfit + gasFeeNum + parseFloat(flashFee)).toFixed(6);
+            const finalAmount = (platformTradeAmount + parseFloat(grossProfit)).toFixed(6);
+            const roiPercent = ((platformNetProfit / platformTradeAmount) * 100).toFixed(4) + '%';
 
             const dynamicCalculation = {
-                start: startAmount.toFixed(6),
+                start: platformTradeAmount.toFixed(6),
                 gross: grossProfit,
                 gasUsd: gasFeeStr,
                 final: finalAmount,
                 flashFee: flashFee,
-                net: newProfit.toFixed(6),
+                net: platformNetProfit.toFixed(6),
                 roi: roiPercent,
                 txHash: txHash
             };
@@ -631,38 +595,134 @@ setInterval(async () => {
             const result = await dbClient.query(`
                 INSERT INTO trade_history (user_id, trade_amount, profit_amount, trade_details)
                 VALUES ($1, $2, $3, $4) RETURNING *
-            `, [session.user_id, session.package_amount, newProfit, tradeDetails]);
+            `, ['platform_engine', platformTradeAmount, platformNetProfit, tradeDetails]);
 
-            if (sessionComplete) {
-                await dbClient.query(`
-                    UPDATE auto_trade_sessions SET current_profit = current_profit + $1, is_active = false WHERE id = $2
-                `, [newProfit, session.id]);
+            broadcastTrade(result.rows[0]);
+        }
+
+        // ===== USER SESSION TRADES: Process active user sessions as before =====
+        if (activeSessions.rows.length > 0) {
+            // Get another random signal for user trades (different from platform trade)
+            const userSignalRes = await dbClient.query("SELECT * FROM arbitrage_signals ORDER BY RANDOM() LIMIT 1");
+            const userBaseSignal = userSignalRes.rows.length > 0 ? userSignalRes.rows[0] : baseSignal;
+
+            for (let session of activeSessions.rows) {
+                const targetProfit = parseFloat(session.target_profit);
+                const currentProfit = parseFloat(session.current_profit || 0);
                 
-                const startAmount = parseFloat(session.package_amount);
-                const achievedPercentage = session.target_percentage ? parseFloat(session.target_percentage) : (startAmount > 0 ? parseFloat(((targetProfit / startAmount) * 100).toFixed(2)) : 0);
+                // 1 to 2 Hour Pace Calculation (Only Profit, No Loss)
+                const remainingProfit = targetProfit - currentProfit;
+                
+                let newProfit = 0;
+                let sessionComplete = false;
 
-                // Notify frontend that session hit target and stopped directly to the user's connection
-                for (let client of connectedClients) {
-                    if (client.readyState === 1 && client.userId === session.user_id) {
-                        client.send(JSON.stringify([{ 
-                            type: 'SESSION_COMPLETE', 
-                            total_profit: targetProfit,
-                            profit_percentage: achievedPercentage
-                        }]));
+                if (remainingProfit <= 0) {
+                    // Target already hit! 
+                    newProfit = 0;
+                    sessionComplete = true;
+                } else {
+                    // For 1-2 hours completion (60-120 mins) at 15 seconds per tick:
+                    // Ticks for 2 hours = 120 mins * 4 ticks/min = 480 ticks
+                    // Ticks for 1 hour = 60 mins * 4 ticks/min = 240 ticks
+                    const minProfitPerTick = targetProfit / 480;
+                    const maxProfitPerTick = targetProfit / 240;
+                    
+                    // Generate a purely POSITIVE random profit
+                    newProfit = minProfitPerTick + (Math.random() * (maxProfitPerTick - minProfitPerTick));
+                    
+                    // If this jump puts us over the target, give exactly what's left and finish!
+                    if (currentProfit + newProfit >= targetProfit) {
+                        newProfit = remainingProfit;
+                        sessionComplete = true;
                     }
                 }
-            } else {
-                await dbClient.query(`
-                    UPDATE auto_trade_sessions SET current_profit = current_profit + $1 WHERE id = $2
-                `, [newProfit, session.id]);
+                
+                // Final safety cap
+                if (currentProfit + newProfit >= targetProfit) {
+                    newProfit = targetProfit - currentProfit;
+                    sessionComplete = true;
+                }
+                
+                // Dynamic realistic calculation math for the UI summary panel
+                const startAmount = parseFloat(session.package_amount);
+                const net = userBaseSignal.network || 'Ethereum';
+                const pair = userBaseSignal.pair || userBaseSignal.route_path || '';
+                const txHash = getVerifiedTxHash(net, pair);
+                const spec = VERIFIED_TRANSACTION_SPECS[txHash];
+
+                // Network-specific realistic gas fee (L2 vs L1)
+                let gasFeeNum = 0.05;
+                if (net === 'Ethereum') gasFeeNum = Number((Math.random() * 0.40 + 1.25).toFixed(4));
+                else if (net === 'BNB') gasFeeNum = Number((Math.random() * 0.15 + 0.35).toFixed(4));
+                else if (net === 'Arbitrum') gasFeeNum = Number((Math.random() * 0.04 + 0.01).toFixed(4));
+                else if (net === 'Base' || net === 'Optimism') gasFeeNum = Number((Math.random() * 0.02 + 0.005).toFixed(4));
+                else if (net === 'Polygon') gasFeeNum = Number((Math.random() * 0.03 + 0.01).toFixed(4));
+                else gasFeeNum = Number((Math.random() * 0.04 + 0.02).toFixed(4));
+
+                const gasFeeStr = spec?.gasUsd ? spec.gasUsd : `$${gasFeeNum.toFixed(4)}`;
+                const flashFee = (Math.random() * 0.08 + 0.01).toFixed(6); // Realistic flash fee $0.01 to $0.09
+                
+                // Equation: Gross = Net + Gas + Flash Fee
+                const grossProfit = (newProfit + gasFeeNum + parseFloat(flashFee)).toFixed(6);
+                const finalAmount = (startAmount + parseFloat(grossProfit)).toFixed(6);
+                const roiPercent = ((newProfit / startAmount) * 100).toFixed(4) + '%';
+
+                const dynamicCalculation = {
+                    start: startAmount.toFixed(6),
+                    gross: grossProfit,
+                    gasUsd: gasFeeStr,
+                    final: finalAmount,
+                    flashFee: flashFee,
+                    net: newProfit.toFixed(6),
+                    roi: roiPercent,
+                    txHash: txHash
+                };
+
+                const tradeDetails = JSON.stringify({
+                    network: spec?.network || userBaseSignal.network,
+                    type: spec?.type || userBaseSignal.type,
+                    routePath: spec?.routePath || userBaseSignal.route_path,
+                    calculation: dynamicCalculation,
+                    hops: spec?.hops || userBaseSignal.hops,
+                    txHash: txHash
+                });
+
+                const result = await dbClient.query(`
+                    INSERT INTO trade_history (user_id, trade_amount, profit_amount, trade_details)
+                    VALUES ($1, $2, $3, $4) RETURNING *
+                `, [session.user_id, session.package_amount, newProfit, tradeDetails]);
+
+                if (sessionComplete) {
+                    await dbClient.query(`
+                        UPDATE auto_trade_sessions SET current_profit = current_profit + $1, is_active = false WHERE id = $2
+                    `, [newProfit, session.id]);
+                    
+                    const startAmount = parseFloat(session.package_amount);
+                    const achievedPercentage = session.target_percentage ? parseFloat(session.target_percentage) : (startAmount > 0 ? parseFloat(((targetProfit / startAmount) * 100).toFixed(2)) : 0);
+
+                    // Notify frontend that session hit target and stopped directly to the user's connection
+                    for (let client of connectedClients) {
+                        if (client.readyState === 1 && client.userId === session.user_id) {
+                            client.send(JSON.stringify([{ 
+                                type: 'SESSION_COMPLETE', 
+                                total_profit: targetProfit,
+                                profit_percentage: achievedPercentage
+                            }]));
+                        }
+                    }
+                } else {
+                    await dbClient.query(`
+                        UPDATE auto_trade_sessions SET current_profit = current_profit + $1 WHERE id = $2
+                    `, [newProfit, session.id]);
+                }
+                
+                broadcastTrade(result.rows[0]);
             }
-            
-            broadcastTrade(result.rows[0]);
         }
     } catch (err) {
         console.error("Auto-Trade Engine Error:", err);
     }
-}, 15000); // Runs incredibly fast: every 15 seconds
+}, 15000); // Runs every 15 seconds — Platform Ledger always active
 // ----------------------------------------
 
 // Every 15 seconds, swap ONE record with a new one from the DB
