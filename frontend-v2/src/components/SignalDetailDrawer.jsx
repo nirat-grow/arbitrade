@@ -379,7 +379,7 @@ export const SignalDetailDrawer = React.memo(({ data, isTable = false }) => {
 
                 {/* Token Swap Stream Route */}
                 <div className="hop-step-swap">
-                  {renderSwapTokens(hop.swapText)}
+                  {renderSwapTokens(hop.swapText || hop.swap)}
                 </div>
 
                 {/* Contract Addresses Grid */}

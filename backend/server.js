@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { getVerifiedTxHash } from './verifiedTransactions.js';
+import { getVerifiedTxHash, VERIFIED_TRANSACTIONS } from './verifiedTransactions.js';
 import { VERIFIED_TRANSACTION_SPECS } from './reconcile_database_trades.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -548,28 +548,43 @@ setInterval(async () => {
 
         // ===== PLATFORM LEDGER ENGINE: Always generate a continuous trade for the live Execution Ledger =====
         {
-            const net = baseSignal.network || 'Ethereum';
-            const pair = baseSignal.pair || baseSignal.route_path || '';
-            const txHash = getVerifiedTxHash(net, pair);
+            // Select verified network & authentic on-chain transaction
+            const availableNetworks = Object.keys(VERIFIED_TRANSACTIONS);
+            const net = (baseSignal.network && VERIFIED_TRANSACTIONS[baseSignal.network])
+                ? baseSignal.network
+                : availableNetworks[Math.floor(Math.random() * availableNetworks.length)];
+
+            const netTxList = VERIFIED_TRANSACTIONS[net];
+            const selectedTx = netTxList[Math.floor(Math.random() * netTxList.length)];
+            const txHash = selectedTx.hash;
             const spec = VERIFIED_TRANSACTION_SPECS[txHash];
 
-            // Network-specific realistic gas fee (L2 vs L1)
+            // Network-specific realistic gas fee matching verified spec
             let gasFeeNum = 0.05;
-            if (net === 'Ethereum') gasFeeNum = Number((Math.random() * 0.40 + 1.25).toFixed(4));
-            else if (net === 'BNB') gasFeeNum = Number((Math.random() * 0.15 + 0.35).toFixed(4));
-            else if (net === 'Arbitrum') gasFeeNum = Number((Math.random() * 0.04 + 0.01).toFixed(4));
-            else if (net === 'Base' || net === 'Optimism') gasFeeNum = Number((Math.random() * 0.02 + 0.005).toFixed(4));
-            else if (net === 'Polygon') gasFeeNum = Number((Math.random() * 0.03 + 0.01).toFixed(4));
-            else gasFeeNum = Number((Math.random() * 0.04 + 0.02).toFixed(4));
-
-            // Realistic platform trade amounts ($500 - $25,000 range)
-            const platformTradeAmount = Number((Math.random() * 24500 + 500).toFixed(2));
-            const platformNetProfit = Number((Math.random() * 0.12 + 0.02).toFixed(6)); // $0.02 to $0.14 per tick
-
+            if (spec?.gasUsd) {
+                gasFeeNum = parseFloat(spec.gasUsd.replace(/[^0-9.]/g, '')) || 0.05;
+            } else {
+                if (net === 'Ethereum') gasFeeNum = Number((Math.random() * 0.40 + 1.25).toFixed(4));
+                else if (net === 'BNB') gasFeeNum = Number((Math.random() * 0.15 + 0.35).toFixed(4));
+                else if (net === 'Arbitrum') gasFeeNum = Number((Math.random() * 0.04 + 0.01).toFixed(4));
+                else if (net === 'Base' || net === 'Optimism') gasFeeNum = Number((Math.random() * 0.02 + 0.005).toFixed(4));
+                else if (net === 'Polygon') gasFeeNum = Number((Math.random() * 0.03 + 0.01).toFixed(4));
+                else gasFeeNum = Number((Math.random() * 0.04 + 0.02).toFixed(4));
+            }
             const gasFeeStr = spec?.gasUsd ? spec.gasUsd : `$${gasFeeNum.toFixed(4)}`;
-            const flashFee = (Math.random() * 0.08 + 0.01).toFixed(6);
+
+            // Realistic platform trade amounts ($1,000 - $25,000 range)
+            const platformTradeAmount = Number((Math.random() * 24000 + 1000).toFixed(2));
+
+            // Profit strictly between $10 and $25 per new trade
+            const platformNetProfit = Number((Math.random() * 15 + 10).toFixed(6));
+
+            // Realistic protocol / flash loan fee ($0.05 to $0.25)
+            const flashFee = (Math.random() * 0.20 + 0.05).toFixed(6);
+
+            // Mathematical consistency: Gross Arbitrage = Net Profit + Gas Fee + Flash Fee
             const grossProfit = (platformNetProfit + gasFeeNum + parseFloat(flashFee)).toFixed(6);
-            const finalAmount = (platformTradeAmount + parseFloat(grossProfit)).toFixed(6);
+            const finalAmount = (platformTradeAmount + platformNetProfit).toFixed(6);
             const roiPercent = ((platformNetProfit / platformTradeAmount) * 100).toFixed(4) + '%';
 
             const dynamicCalculation = {
@@ -583,12 +598,18 @@ setInterval(async () => {
                 txHash: txHash
             };
 
+            const formattedHops = (spec?.hops || []).map(h => ({
+                ...h,
+                swapText: h.swapText || h.swap,
+                swap: h.swap || h.swapText
+            }));
+
             const tradeDetails = JSON.stringify({
-                network: spec?.network || baseSignal.network,
-                type: spec?.type || baseSignal.type,
-                routePath: spec?.routePath || baseSignal.route_path,
+                network: spec?.network || net,
+                type: spec?.type || 'Arbitrage',
+                routePath: spec?.routePath || (selectedTx.pair ? selectedTx.pair.split('/') : ['WETH', 'USDT', 'WETH']),
                 calculation: dynamicCalculation,
-                hops: spec?.hops || baseSignal.hops,
+                hops: formattedHops,
                 txHash: txHash
             });
 
@@ -650,21 +671,25 @@ setInterval(async () => {
                 const txHash = getVerifiedTxHash(net, pair);
                 const spec = VERIFIED_TRANSACTION_SPECS[txHash];
 
-                // Network-specific realistic gas fee (L2 vs L1)
+                // Network-specific realistic gas fee matching verified spec
                 let gasFeeNum = 0.05;
-                if (net === 'Ethereum') gasFeeNum = Number((Math.random() * 0.40 + 1.25).toFixed(4));
-                else if (net === 'BNB') gasFeeNum = Number((Math.random() * 0.15 + 0.35).toFixed(4));
-                else if (net === 'Arbitrum') gasFeeNum = Number((Math.random() * 0.04 + 0.01).toFixed(4));
-                else if (net === 'Base' || net === 'Optimism') gasFeeNum = Number((Math.random() * 0.02 + 0.005).toFixed(4));
-                else if (net === 'Polygon') gasFeeNum = Number((Math.random() * 0.03 + 0.01).toFixed(4));
-                else gasFeeNum = Number((Math.random() * 0.04 + 0.02).toFixed(4));
+                if (spec?.gasUsd) {
+                    gasFeeNum = parseFloat(spec.gasUsd.replace(/[^0-9.]/g, '')) || 0.05;
+                } else {
+                    if (net === 'Ethereum') gasFeeNum = Number((Math.random() * 0.40 + 1.25).toFixed(4));
+                    else if (net === 'BNB') gasFeeNum = Number((Math.random() * 0.15 + 0.35).toFixed(4));
+                    else if (net === 'Arbitrum') gasFeeNum = Number((Math.random() * 0.04 + 0.01).toFixed(4));
+                    else if (net === 'Base' || net === 'Optimism') gasFeeNum = Number((Math.random() * 0.02 + 0.005).toFixed(4));
+                    else if (net === 'Polygon') gasFeeNum = Number((Math.random() * 0.03 + 0.01).toFixed(4));
+                    else gasFeeNum = Number((Math.random() * 0.04 + 0.02).toFixed(4));
+                }
 
                 const gasFeeStr = spec?.gasUsd ? spec.gasUsd : `$${gasFeeNum.toFixed(4)}`;
                 const flashFee = (Math.random() * 0.08 + 0.01).toFixed(6); // Realistic flash fee $0.01 to $0.09
                 
                 // Equation: Gross = Net + Gas + Flash Fee
                 const grossProfit = (newProfit + gasFeeNum + parseFloat(flashFee)).toFixed(6);
-                const finalAmount = (startAmount + parseFloat(grossProfit)).toFixed(6);
+                const finalAmount = (startAmount + newProfit).toFixed(6);
                 const roiPercent = ((newProfit / startAmount) * 100).toFixed(4) + '%';
 
                 const dynamicCalculation = {
@@ -678,12 +703,18 @@ setInterval(async () => {
                     txHash: txHash
                 };
 
+                const formattedUserHops = (spec?.hops || userBaseSignal.hops || []).map(h => ({
+                    ...h,
+                    swapText: h.swapText || h.swap,
+                    swap: h.swap || h.swapText
+                }));
+
                 const tradeDetails = JSON.stringify({
                     network: spec?.network || userBaseSignal.network,
                     type: spec?.type || userBaseSignal.type,
                     routePath: spec?.routePath || userBaseSignal.route_path,
                     calculation: dynamicCalculation,
-                    hops: spec?.hops || userBaseSignal.hops,
+                    hops: formattedUserHops,
                     txHash: txHash
                 });
 
