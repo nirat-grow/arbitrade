@@ -239,7 +239,7 @@ app.get('/api/trade-history/:userId', async (req, res) => {
 // --- GET ALL HISTORY WITH FILTERS & CHUNKED PAGINATION ENDPOINT ---
 app.get('/api/all-history', async (req, res) => {
     try {
-        const { userId, timeframe, limit, offset } = req.query;
+        const { userId, timeframe, limit, offset, network } = req.query;
         let baseFilter = ' WHERE 1=1';
         let filterParams = [];
         let paramCount = 1;
@@ -258,12 +258,37 @@ app.get('/api/all-history', async (req, res) => {
             baseFilter += ` AND date_trunc('month', created_at) = date_trunc('month', CURRENT_DATE)`;
         }
 
-        // 1. Get accurate total count for pagination header and HUD badges
-        const countRes = await dbClient.query(`SELECT COUNT(*) FROM trade_history${baseFilter}`, filterParams);
-        const totalTrades = parseInt(countRes.rows[0]?.count || 0, 10);
+        if (network && network !== 'All') {
+            baseFilter += ` AND trade_details->>'network' = $${paramCount}`;
+            filterParams.push(network);
+            paramCount++;
+        }
 
-        // 2. Paginate data with limit & offset (default limit 500 for lightning-fast network response)
-        const fetchLimit = limit === 'all' ? 0 : (limit !== undefined ? parseInt(limit, 10) : 500);
+        // 1. Get accurate counts per conduit network
+        const countsRes = await dbClient.query(`
+            SELECT trade_details->>'network' as network, count(*)::int as count
+            FROM trade_history
+            GROUP BY trade_details->>'network'
+        `);
+        const netMap = {};
+        countsRes.rows.forEach(r => { if (r.network) netMap[r.network] = r.count; });
+        const visibleConduits = ['Polygon', 'Ethereum', 'BNB', 'Arbitrum', 'Base'];
+        const visibleTotal = visibleConduits.reduce((acc, net) => acc + (netMap[net] || 0), 0);
+        const networkCounts = {
+            All: visibleTotal,
+            Polygon: netMap['Polygon'] || 0,
+            Ethereum: netMap['Ethereum'] || 0,
+            BNB: netMap['BNB'] || 0,
+            Arbitrum: netMap['Arbitrum'] || 0,
+            Base: netMap['Base'] || 0
+        };
+
+        const totalTrades = (network && network !== 'All')
+            ? (netMap[network] || 0)
+            : visibleTotal;
+
+        // 2. Paginate data with limit & offset (default limit 50 for lightning-fast network response)
+        const fetchLimit = limit === 'all' ? 0 : (limit !== undefined ? parseInt(limit, 10) : 50);
         const fetchOffset = offset !== undefined ? parseInt(offset, 10) : 0;
 
         let queryStr = `SELECT * FROM trade_history${baseFilter} ORDER BY created_at DESC`;
@@ -286,6 +311,7 @@ app.get('/api/all-history', async (req, res) => {
         res.status(200).json({
             success: true,
             totalTrades: totalTrades,
+            networkCounts: networkCounts,
             limit: fetchLimit,
             offset: fetchOffset,
             trades: historyCheck.rows

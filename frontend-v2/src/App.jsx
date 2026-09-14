@@ -61,7 +61,22 @@ export default function App() {
   const effectiveLayout = isMobile ? 'grid' : viewLayout;
 
   // Data states
-  const [globalSignals, setGlobalSignals] = useState([]);
+  const [globalSignals, setGlobalSignals] = useState(() => {
+    try {
+      const cached = getStorageItem('cached_global_signals');
+      return cached ? JSON.parse(cached) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [isFetchingGlobal, setIsFetchingGlobal] = useState(() => {
+    try {
+      const cached = getStorageItem('cached_global_signals');
+      return !(cached && JSON.parse(cached).length > 0);
+    } catch (e) {
+      return true;
+    }
+  });
   const [ledgerSignals, setLedgerSignals] = useState(() => {
     try {
       const cached = getStorageItem('cached_ledger_v2');
@@ -78,11 +93,20 @@ export default function App() {
       return 0;
     }
   });
+  const [networkCounts, setNetworkCounts] = useState(() => {
+    try {
+      const cached = getStorageItem('cached_network_counts');
+      return cached ? JSON.parse(cached) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+  const [isTableTransitioning, setIsTableTransitioning] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreTrades, setHasMoreTrades] = useState(true);
   const [isFetchingInitialLedger, setIsFetchingInitialLedger] = useState(() => {
     try {
-      return !getStorageItem('cached_ledger');
+      return !getStorageItem('cached_ledger_v2');
     } catch (e) {
       return true;
     }
@@ -120,8 +144,17 @@ export default function App() {
   }, []);
 
   const handleChainChange = (chain) => {
+    if (chain === selectedChain) return;
+    setIsTableTransitioning(true);
     setSelectedChain(chain);
+    setCurrentPage(1);
+    setExpandedSignalId(null);
     frozenIdsRef.current = null;
+    if (currentView === 'global') {
+      setTimeout(() => {
+        setIsTableTransitioning(false);
+      }, 350);
+    }
   };
 
   const handleSortChange = (newSort) => {
@@ -215,20 +248,26 @@ export default function App() {
     showToast('Disconnected from personal account session.', 'info');
   };
 
-  // 3. Fetch Executed Trades in 500-record chunks for maximum network speed
-  const fetchAllHistoryTrades = async (offset = 0, isAppend = false) => {
-    if (isAppend && (isLoadingMoreRef.current || !hasMoreTradesRef.current)) return;
+  // 3. Fetch Executed Trades: Exactly 50 records per page on-demand with smooth transition
+  const fetchAllHistoryTrades = async (page = 1, chain = null) => {
     try {
-      if (isAppend) setIsLoadingMore(true);
-      else if (!ledgerSignalsRef.current.length) setIsFetchingInitialLedger(true);
-
+      setIsTableTransitioning(true);
+      setIsLoadingMore(true);
+      const startTime = Date.now();
+      const targetChain = chain !== null ? chain : selectedChain;
+      const chainParam = (targetChain && targetChain !== 'All') ? `&network=${encodeURIComponent(targetChain)}` : '';
+      const offset = (page - 1) * pageSize;
       const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-      const res = await fetch(`${protocol}//${window.location.host}/api/all-history?limit=500&offset=${offset}`);
+      const res = await fetch(`${protocol}//${window.location.host}/api/all-history?limit=50&offset=${offset}${chainParam}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.trades)) {
         if (data.totalTrades !== undefined) {
           setTotalSettledCount(data.totalTrades);
           setStorageItem('cached_total', data.totalTrades.toString());
+        }
+        if (data.networkCounts) {
+          setNetworkCounts(data.networkCounts);
+          setStorageItem('cached_network_counts', JSON.stringify(data.networkCounts));
         }
         const formatted = data.trades.map((t) => {
           const d = typeof t.trade_details === 'string' ? JSON.parse(t.trade_details) : t.trade_details;
@@ -248,43 +287,30 @@ export default function App() {
           };
         });
 
-        // Cache first 50 records for instant 0ms render on next page load
-        if (!isAppend && formatted.length > 0) {
-          setStorageItem('cached_ledger_v2', JSON.stringify(formatted.slice(0, 50)));
+        // Ensure minimum smooth transition time of 420ms for buttery animation feel
+        const elapsed = Date.now() - startTime;
+        const delay = Math.max(0, 420 - elapsed);
+        if (delay > 0) {
+          await new Promise(r => setTimeout(r, delay));
         }
 
-        setLedgerSignals((prev) => {
-          if (isAppend) {
-            const existingIds = new Set(prev.map((p) => p.id));
-            const newItems = formatted.filter((item) => !existingIds.has(item.id));
-            return [...prev, ...newItems];
-          }
-          return formatted;
-        });
-
-        if (data.trades.length < 500) {
-          setHasMoreTrades(false);
-        } else {
-          setHasMoreTrades(true);
-        }
+        // Set the 50 fetched records for this page
+        setLedgerSignals(formatted);
       }
     } catch (err) {
       console.error('Error fetching history trades:', err);
     } finally {
-      if (isAppend) setIsLoadingMore(false);
+      setIsTableTransitioning(false);
+      setIsLoadingMore(false);
       setIsFetchingInitialLedger(false);
     }
   };
 
   useEffect(() => {
-    fetchAllHistoryTrades(0, false);
-  }, []);
-
-  useEffect(() => {
     if (currentView === 'ledger' || currentView === 'personal') {
-      fetchAllHistoryTrades(0, false);
+      fetchAllHistoryTrades(1, selectedChain);
     }
-  }, [currentView]);
+  }, [currentView, selectedChain]);
 
   // 3b. Fetch Live Scanner Signals via REST (Instant 0ms Global Matrix render)
   const fetchScannerSignals = async () => {
@@ -294,9 +320,12 @@ export default function App() {
       const data = await res.json();
       if (data.success && Array.isArray(data.signals) && data.signals.length > 0) {
         setGlobalSignals(data.signals);
+        setStorageItem('cached_global_signals', JSON.stringify(data.signals));
       }
     } catch (err) {
       console.error('Error fetching scanner signals:', err);
+    } finally {
+      setIsFetchingGlobal(false);
     }
   };
 
@@ -400,9 +429,17 @@ export default function App() {
               txHash: validHash
             };
             setTotalSettledCount((prev) => prev + 1);
+            if (trade.network) {
+              setNetworkCounts((prev) => ({
+                ...prev,
+                All: (prev.All || 0) + 1,
+                [trade.network]: (prev[trade.network] || 0) + 1
+              }));
+            }
             setLedgerSignals((prev) => {
               if (prev.some((p) => p.id === trade.id)) return prev;
-              return [trade, ...prev];
+              const next = [trade, ...prev];
+              return next.slice(0, pageSize);
             });
 
             if (userProfile && trade.isPersonalMatch) {
@@ -433,6 +470,7 @@ export default function App() {
           }
 
           if (scannerData && scannerData.length > 0) {
+            setIsFetchingGlobal(false);
             setGlobalSignals((prev) => {
               const currentExpandedId = expandedSignalIdRef.current;
               if (!currentExpandedId) {
@@ -622,10 +660,16 @@ export default function App() {
     setExpandedSignalId(null);
   }, [currentView, selectedChain, searchQuery, sortBy]);
 
-  const isDefaultLedgerView = currentView === 'ledger' && selectedChain === 'All' && !searchQuery.trim() && !userProfile;
-  const totalCount = isDefaultLedgerView
-    ? Math.max(totalSettledCount, filteredSignals.length)
-    : filteredSignals.length;
+  const totalCount = useMemo(() => {
+    if (currentView === 'global') return filteredSignals.length;
+    if (networkCounts && networkCounts[selectedChain] !== undefined) {
+      return Math.max(networkCounts[selectedChain], filteredSignals.length);
+    }
+    const isDefaultLedgerView = currentView === 'ledger' && selectedChain === 'All' && !searchQuery.trim() && !userProfile;
+    return isDefaultLedgerView
+      ? Math.max(totalSettledCount, filteredSignals.length)
+      : filteredSignals.length;
+  }, [currentView, selectedChain, networkCounts, totalSettledCount, filteredSignals.length, searchQuery, userProfile]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -633,26 +677,28 @@ export default function App() {
   const endIndex = Math.min(startIndex + pageSize, totalCount);
 
   const displaySignals = useMemo(() => {
-    if (currentView === 'global') return filteredSignals;
-    return filteredSignals.slice(startIndex, endIndex);
-  }, [currentView, filteredSignals, startIndex, endIndex]);
+    return filteredSignals;
+  }, [filteredSignals]);
+
+  const isInitialLoading = currentView === 'global'
+    ? (isFetchingGlobal && globalSignals.length === 0)
+    : isFetchingInitialLedger;
+
+  const shouldShowSkeleton = isTableTransitioning || isInitialLoading;
 
   const handlePageChange = useCallback((newPage) => {
+    if (newPage === currentPage || isTableTransitioning) return;
+    setIsTableTransitioning(true);
     setCurrentPage(newPage);
     setExpandedSignalId(null);
     if (tableContainerRef.current) {
       tableContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    // Lazy load next 500 chunk when user approaches the end of currently loaded records
-    if (currentView === 'ledger') {
-      const neededRecords = newPage * pageSize;
-      const loadedCount = ledgerSignalsRef.current.length;
-      if (neededRecords >= loadedCount - 100 && hasMoreTradesRef.current && !isLoadingMoreRef.current) {
-        fetchAllHistoryTrades(loadedCount, true);
-      }
+    if (currentView === 'ledger' || currentView === 'personal') {
+      fetchAllHistoryTrades(newPage, selectedChain);
     }
-  }, [currentView, pageSize]);
+  }, [currentView, selectedChain, currentPage, isTableTransitioning]);
 
   const renderPaginationWidget = (isBottom = false) => {
     if (currentView === 'global' || totalCount === 0) return null;
@@ -713,7 +759,16 @@ export default function App() {
       <Navbar
         userProfile={userProfile}
         currentView={currentView}
-        onViewChange={(v) => setCurrentView(v)}
+        onViewChange={(v) => {
+          if (v === currentView) return;
+          setIsTableTransitioning(true);
+          setCurrentView(v);
+          if (v === 'global') {
+            setTimeout(() => {
+              setIsTableTransitioning(false);
+            }, 300);
+          }
+        }}
         onOpenLogin={() => setIsLoginOpen(true)}
         onStartTrade={handleStartTrade}
         onLogout={handleLogout}
@@ -848,82 +903,100 @@ export default function App() {
           </div>
 
           {/* Signals Stream Display */}
-          {filteredSignals.length === 0 ? (
-            isFetchingInitialLedger && currentView === 'ledger' ? (
-              effectiveLayout === 'grid' ? (
-                /* Card Skeleton while initially loading in grid/mobile mode */
-                <div className="grid-view-wrapper" ref={tableContainerRef}>
-                  <div className="signals-grid-container">
-                    {[1, 2, 3, 4, 5, 6].map((idx) => (
-                      <div key={idx} className="quantum-signal-card" style={{ opacity: 0.7 }}>
-                        <span className="card-corner card-corner-tl" />
-                        <span className="card-corner card-corner-tr" />
-                        <span className="card-corner card-corner-bl" />
-                        <span className="card-corner card-corner-br" />
-                        <div className="terminal-skeleton-row" style={{ height: '28px', marginBottom: '6px' }} />
-                        <div className="terminal-skeleton-row" style={{ height: '42px', marginBottom: '6px' }} />
-                        <div className="terminal-skeleton-row" style={{ height: '56px' }} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                /* High-End Obsidian Shimmer Skeleton while initially loading table on desktop */
-                <div className="terminal-table-container">
-                  <span className="table-corner table-corner-tl" />
-                  <span className="table-corner table-corner-tr" />
-                  <span className="table-corner table-corner-bl" />
-                  <span className="table-corner table-corner-br" />
-                  <div className="terminal-card-topbar">
-                    <div className="topbar-title-wrap">
-                      <div className="topbar-icon-badge">
-                        <svg className="topbar-icon-bolt" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                        </svg>
-                      </div>
-                      <h3 className="topbar-title">Live Execution Ledger</h3>
-                      <span className="topbar-active-pill">Syncing Ledger...</span>
+          {shouldShowSkeleton ? (
+            effectiveLayout === 'grid' ? (
+              /* Card Skeleton while loading in grid/mobile mode */
+              <div className="grid-view-wrapper" ref={tableContainerRef}>
+                {currentView !== 'global' && totalCount > 0 && (
+                  <div className="grid-pagination-header">
+                    <div className="grid-header-meta">
+                      <span className="grid-header-title">
+                        {userProfile ? 'Personal Trade Ledger' : 'Live Execution Ledger'}
+                      </span>
+                      <span className="topbar-active-pill">
+                        Syncing {selectedChain === 'All' ? 'Conduits' : selectedChain}...
+                      </span>
                     </div>
+                    {renderPaginationWidget(false)}
                   </div>
-                  <div className="terminal-header-row">
-                    <div className="header-cell">Conduit</div>
-                    <div className="header-cell">Execution Route</div>
-                    <div className="header-cell">Latency</div>
-                    <div className="header-cell">Net Yield ($)</div>
-                    <div className="header-cell">Est. ROI</div>
-                    <div className="header-cell" style={{ textAlign: 'right', justifyContent: 'flex-end' }}>Inspect</div>
-                  </div>
-                  <div className="terminal-skeleton-table">
-                    {[1, 2, 3, 4, 5, 6, 7].map((idx) => (
-                      <div key={idx} className="terminal-skeleton-row" />
-                    ))}
-                  </div>
+                )}
+                <div className="signals-grid-container">
+                  {[1, 2, 3, 4, 5, 6].map((idx) => (
+                    <div key={idx} className="quantum-signal-card" style={{ opacity: 0.7 }}>
+                      <span className="card-corner card-corner-tl" />
+                      <span className="card-corner card-corner-tr" />
+                      <span className="card-corner card-corner-bl" />
+                      <span className="card-corner card-corner-br" />
+                      <div className="terminal-skeleton-row" style={{ height: '28px', marginBottom: '6px' }} />
+                      <div className="terminal-skeleton-row" style={{ height: '42px', marginBottom: '6px' }} />
+                      <div className="terminal-skeleton-row" style={{ height: '56px' }} />
+                    </div>
+                  ))}
                 </div>
-              )
+              </div>
             ) : (
-              <div
-                style={{
-                  textAlign: 'center',
-                  padding: '60px 20px',
-                  background: 'var(--bg-glass)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-xl)',
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                <div style={{ fontSize: '2rem', marginBottom: '10px' }}>⚡</div>
-                <div style={{ fontFamily: 'var(--font-tech)', fontSize: '1.1rem', color: '#FFFFFF', fontWeight: '700' }}>
-                  {currentView === 'global'
-                    ? 'Scanning High-Frequency Arbitrage Conduits...'
-                    : (userProfile ? 'No Personal Trades Found' : 'No Matching Arbitrage Records')}
+              /* High-End Obsidian Shimmer Skeleton while loading table on desktop */
+              <div className="terminal-table-container" ref={tableContainerRef}>
+                <span className="table-corner table-corner-tl" />
+                <span className="table-corner table-corner-tr" />
+                <span className="table-corner table-corner-bl" />
+                <span className="table-corner table-corner-br" />
+                <div className="terminal-card-topbar">
+                  <div className="topbar-title-wrap">
+                    <div className="topbar-icon-badge">
+                      <svg className="topbar-icon-bolt" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                      </svg>
+                    </div>
+                    <h3 className="topbar-title">
+                      {currentView === 'global'
+                        ? 'Current Running Conduits'
+                        : (userProfile ? 'Personal Trade Ledger' : 'Live Execution Ledger')}
+                    </h3>
+                    <span className="topbar-active-pill">
+                      Syncing {selectedChain === 'All' ? 'Conduits' : selectedChain}...
+                    </span>
+                  </div>
+                  {renderPaginationWidget(false)}
                 </div>
-                <p style={{ fontSize: '0.84rem', marginTop: '6px', maxWidth: '420px', margin: '6px auto 0' }}>
-                  {searchQuery || selectedChain !== 'All'
-                    ? 'No records match your active search or conduit network filter. Try clearing filters.'
-                    : 'Awaiting new algorithmic settlements across live liquidity pools.'}
-                </p>
+                <div className="terminal-header-row">
+                  <div className="header-cell">Conduit</div>
+                  <div className="header-cell">Execution Route</div>
+                  <div className="header-cell">Latency</div>
+                  <div className="header-cell">Net Yield ($)</div>
+                  <div className="header-cell">Est. ROI</div>
+                  <div className="header-cell" style={{ textAlign: 'right', justifyContent: 'flex-end' }}>Inspect</div>
+                </div>
+                <div className="terminal-skeleton-table">
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((idx) => (
+                    <div key={idx} className="terminal-skeleton-row" />
+                  ))}
+                </div>
               </div>
             )
+          ) : filteredSignals.length === 0 ? (
+            <div
+              style={{
+                textAlign: 'center',
+                padding: '60px 20px',
+                background: 'var(--bg-glass)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-xl)',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              <div style={{ fontSize: '2rem', marginBottom: '10px' }}>⚡</div>
+              <div style={{ fontFamily: 'var(--font-tech)', fontSize: '1.1rem', color: '#FFFFFF', fontWeight: '700' }}>
+                {currentView === 'global'
+                  ? 'Scanning High-Frequency Arbitrage Conduits...'
+                  : (userProfile ? 'No Personal Trades Found' : 'No Matching Arbitrage Records')}
+              </div>
+              <p style={{ fontSize: '0.84rem', marginTop: '6px', maxWidth: '420px', margin: '6px auto 0' }}>
+                {searchQuery || selectedChain !== 'All'
+                  ? 'No records match your active search or conduit network filter. Try clearing filters.'
+                  : 'Awaiting new algorithmic settlements across live liquidity pools.'}
+              </p>
+            </div>
           ) : effectiveLayout === 'grid' ? (
             /* Mode A: Quantum Cards Grid */
             <div className="grid-view-wrapper" ref={tableContainerRef}>
@@ -940,7 +1013,7 @@ export default function App() {
                   {renderPaginationWidget(false)}
                 </div>
               )}
-              <div className="signals-grid-container">
+              <div className="signals-grid-container fade-in">
                 {displaySignals.map((signal) => (
                   <SignalCard
                     key={signal.id}
@@ -979,8 +1052,7 @@ export default function App() {
                       : (userProfile ? 'Personal Trade Ledger' : 'Live Execution Ledger')}
                   </h3>
                   <span className="topbar-active-pill">
-                    {totalCount.toLocaleString()}{' '}
-                    {currentView === 'global' ? 'Active' : 'Settled'}
+                    {`${totalCount.toLocaleString()} ${currentView === 'global' ? 'Active' : 'Settled'}`}
                   </span>
                 </div>
                 {renderPaginationWidget(false)}
@@ -996,7 +1068,8 @@ export default function App() {
                   Inspect
                 </div>
               </div>
-              <div className="terminal-rows-list">
+
+              <div className="terminal-rows-list fade-in">
                 {displaySignals.map((signal) => (
                   <SignalRow
                     key={signal.id}
