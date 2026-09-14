@@ -592,6 +592,146 @@ export const VERIFIED_TRANSACTION_SPECS = {
       }
     ]
   },
+  "0x624db5ef43ae7d492296aa5434d51d0ae9ba401ca942d48d685b977aa0a74cd1": {
+    "network": "BNB",
+    "type": "Arbitrage",
+    "routePath": [
+      "BNB",
+      "USDT",
+      "BNB"
+    ],
+    "gasUsd": "$0.38",
+    "hops": [
+      {
+        "hop": 1,
+        "dex": "PancakeSwap V3",
+        "feeLabel": "V3 • FEE 500",
+        "swap": "BNB → USDT",
+        "router": "0x4522cfb2158f89F527c2f1b8B31Ad07BcfAb4718",
+        "quoter": "0xB048Bbc1Ee6b733FFfCFb9e9CeF7375518e25997"
+      },
+      {
+        "hop": 2,
+        "dex": "BiSwap",
+        "feeLabel": "V2 • ROUTER",
+        "swap": "USDT → BNB",
+        "router": "0x4522cfb2158f89F527c2f1b8B31Ad07BcfAb4718",
+        "quoter": "0x3a6d8cA21D1CF76F653A67577FA0D27453350dD8"
+      }
+    ]
+  },
+  "0x363c7adeab37960a0a53238c58e7231f1cfe5019384775d9923c5b15052a4feb": {
+    "network": "BNB",
+    "type": "Arbitrage",
+    "routePath": [
+      "CAKE",
+      "BNB",
+      "CAKE"
+    ],
+    "gasUsd": "$0.35",
+    "hops": [
+      {
+        "hop": 1,
+        "dex": "PancakeSwap SmartRouter",
+        "feeLabel": "SMART • ROUTER",
+        "swap": "CAKE → BNB",
+        "router": "0x4522cfb2158f89F527c2f1b8B31Ad07BcfAb4718",
+        "quoter": "0xB048Bbc1Ee6b733FFfCFb9e9CeF7375518e25997"
+      },
+      {
+        "hop": 2,
+        "dex": "ApeSwap",
+        "feeLabel": "V2 • ROUTER",
+        "swap": "BNB → CAKE",
+        "router": "0x4522cfb2158f89F527c2f1b8B31Ad07BcfAb4718",
+        "quoter": "0x3a6d8cA21D1CF76F653A67577FA0D27453350dD8"
+      }
+    ]
+  },
+  "0xce5e70ebdf62c22e8a46af9857d9031a01bdec53d2aa0669db0bb47437370302": {
+    "network": "BNB",
+    "type": "Arbitrage",
+    "routePath": [
+      "BNB",
+      "USDT",
+      "BNB"
+    ],
+    "gasUsd": "$0.38",
+    "hops": [
+      {
+        "hop": 1,
+        "dex": "PancakeSwap V3",
+        "feeLabel": "V3 • FEE 500",
+        "swap": "BNB → USDT",
+        "router": "0x4522cfb2158f89F527c2f1b8B31Ad07BcfAb4718",
+        "quoter": "0xB048Bbc1Ee6b733FFfCFb9e9CeF7375518e25997"
+      },
+      {
+        "hop": 2,
+        "dex": "BiSwap",
+        "feeLabel": "V2 • ROUTER",
+        "swap": "USDT → BNB",
+        "router": "0x4522cfb2158f89F527c2f1b8B31Ad07BcfAb4718",
+        "quoter": "0x3a6d8cA21D1CF76F653A67577FA0D27453350dD8"
+      }
+    ]
+  },
+  "0x4a6da469b7cdee8580b2120cc502c7d5393570f235cc7b11c96c3b8f00ecae29": {
+    "network": "BNB",
+    "type": "Arbitrage",
+    "routePath": [
+      "CAKE",
+      "BNB",
+      "CAKE"
+    ],
+    "gasUsd": "$0.35",
+    "hops": [
+      {
+        "hop": 1,
+        "dex": "PancakeSwap V3",
+        "feeLabel": "V3 • FEE 500",
+        "swap": "CAKE → BNB",
+        "router": "0x4522cfb2158f89F527c2f1b8B31Ad07BcfAb4718",
+        "quoter": "0xB048Bbc1Ee6b733FFfCFb9e9CeF7375518e25997"
+      },
+      {
+        "hop": 2,
+        "dex": "ApeSwap",
+        "feeLabel": "V2 • ROUTER",
+        "swap": "BNB → CAKE",
+        "router": "0x4522cfb2158f89F527c2f1b8B31Ad07BcfAb4718",
+        "quoter": "0x3a6d8cA21D1CF76F653A67577FA0D27453350dD8"
+      }
+    ]
+  },
+  "0x34e59625ae09d777edc2956d2bbf075913d971ea430d4219007a9f5bd46ddb0b": {
+    "network": "BNB",
+    "type": "Arbitrage",
+    "routePath": [
+      "BNB",
+      "USDT",
+      "BNB"
+    ],
+    "gasUsd": "$0.38",
+    "hops": [
+      {
+        "hop": 1,
+        "dex": "PancakeSwap V3",
+        "feeLabel": "V3 • FEE 500",
+        "swap": "BNB → USDT",
+        "router": "0x4522cfb2158f89F527c2f1b8B31Ad07BcfAb4718",
+        "quoter": "0xB048Bbc1Ee6b733FFfCFb9e9CeF7375518e25997"
+      },
+      {
+        "hop": 2,
+        "dex": "BiSwap",
+        "feeLabel": "V2 • ROUTER",
+        "swap": "USDT → BNB",
+        "router": "0x4522cfb2158f89F527c2f1b8B31Ad07BcfAb4718",
+        "quoter": "0x3a6d8cA21D1CF76F653A67577FA0D27453350dD8"
+      }
+    ]
+  },
   "0xfaf1b854810e79d29df5914097ab472a73f4aa93811596e70c15490578988f9d": {
     "network": "BNB",
     "type": "Arbitrage",

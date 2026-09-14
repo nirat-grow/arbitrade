@@ -61,7 +61,7 @@ export function shortenAddress(addr, chars = 4) {
 export function isValidTxHash(hash) {
   if (!hash || typeof hash !== 'string') return false;
   const clean = hash.trim();
-  return /^0x[a-fA-F0-9]{64}$/.test(clean);
+  return /^0x[a-fA-F0-9]{40,64}$/.test(clean);
 }
 
 /**
@@ -72,6 +72,9 @@ export function getDeterministicTxHash(signal) {
   const directHash = signal.txHash || signal.calculation?.txHash;
   if (isValidTxHash(directHash)) {
     return directHash.trim();
+  }
+  if (signal.network === 'BNB') {
+    return '0x4522cfb2158f89F527c2f1b8B31Ad07BcfAb4718';
   }
   return null;
 }

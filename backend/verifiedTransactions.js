@@ -150,31 +150,49 @@ const VERIFIED_TRANSACTIONS = {
   ],
   "BNB": [
     {
-      "hash": "0xfaf1b854810e79d29df5914097ab472a73f4aa93811596e70c15490578988f9d",
+      "hash": "0x624db5ef43ae7d492296aa5434d51d0ae9ba401ca942d48d685b977aa0a74cd1",
       "pair": "BNB/USDT",
-      "dex": "PancakeSwap V3 Multicall Arbitrage",
-      "transfersCount": 21,
-      "logsCount": 32,
-      "blockNumber": 120491269,
-      "link": "https://bscscan.com/tx/0xfaf1b854810e79d29df5914097ab472a73f4aa93811596e70c15490578988f9d"
+      "dex": "PancakeSwap V3 Arbitrage",
+      "transfersCount": 16,
+      "logsCount": 16,
+      "blockNumber": 121821511,
+      "link": "https://bscscan.com/tx/0x624db5ef43ae7d492296aa5434d51d0ae9ba401ca942d48d685b977aa0a74cd1"
     },
     {
-      "hash": "0x1c2e7e56e4bd134b08709865f0511cd5da9980e5cc7a7eece6565330bcec7376",
+      "hash": "0x363c7adeab37960a0a53238c58e7231f1cfe5019384775d9923c5b15052a4feb",
       "pair": "CAKE/BNB",
       "dex": "PancakeSwap SmartRouter Route",
-      "transfersCount": 7,
-      "logsCount": 21,
-      "blockNumber": 120491269,
-      "link": "https://bscscan.com/tx/0x1c2e7e56e4bd134b08709865f0511cd5da9980e5cc7a7eece6565330bcec7376"
+      "transfersCount": 14,
+      "logsCount": 16,
+      "blockNumber": 121821472,
+      "link": "https://bscscan.com/tx/0x363c7adeab37960a0a53238c58e7231f1cfe5019384775d9923c5b15052a4feb"
     },
     {
-      "hash": "0x6ef13d139b46444a4c7cd60ee3d169615966e4a7cb2508c5a12ad4070b255371",
+      "hash": "0xce5e70ebdf62c22e8a46af9857d9031a01bdec53d2aa0669db0bb47437370302",
       "pair": "BNB/USDT",
-      "dex": "PancakeSwap + ApeSwap Multicall",
-      "transfersCount": 4,
-      "logsCount": 15,
-      "blockNumber": 120482090,
-      "link": "https://bscscan.com/tx/0x6ef13d139b46444a4c7cd60ee3d169615966e4a7cb2508c5a12ad4070b255371"
+      "dex": "PancakeSwap + BiSwap Multicall",
+      "transfersCount": 16,
+      "logsCount": 16,
+      "blockNumber": 121821433,
+      "link": "https://bscscan.com/tx/0xce5e70ebdf62c22e8a46af9857d9031a01bdec53d2aa0669db0bb47437370302"
+    },
+    {
+      "hash": "0x4a6da469b7cdee8580b2120cc502c7d5393570f235cc7b11c96c3b8f00ecae29",
+      "pair": "CAKE/BNB",
+      "dex": "PancakeSwap V3 Route",
+      "transfersCount": 14,
+      "logsCount": 16,
+      "blockNumber": 121821393,
+      "link": "https://bscscan.com/tx/0x4a6da469b7cdee8580b2120cc502c7d5393570f235cc7b11c96c3b8f00ecae29"
+    },
+    {
+      "hash": "0x34e59625ae09d777edc2956d2bbf075913d971ea430d4219007a9f5bd46ddb0b",
+      "pair": "BNB/USDT",
+      "dex": "PancakeSwap + ApeSwap Arbitrage",
+      "transfersCount": 16,
+      "logsCount": 16,
+      "blockNumber": 121821315,
+      "link": "https://bscscan.com/tx/0x34e59625ae09d777edc2956d2bbf075913d971ea430d4219007a9f5bd46ddb0b"
     }
   ],
   "Base": [

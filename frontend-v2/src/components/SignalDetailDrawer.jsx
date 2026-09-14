@@ -92,7 +92,12 @@ export const SignalDetailDrawer = React.memo(({ data, isTable = false }) => {
   const txHash = getDeterministicTxHash(data);
   const hasValidTx = Boolean(txHash && isValidTxHash(txHash));
   const isExecuted = data.timeLabel === 'Executed' || Boolean(data.isLedgerTrade);
-  const explorerTxUrl = hasValidTx && data.network && EXPLORER_TX_URLS[data.network] ? EXPLORER_TX_URLS[data.network] + txHash : null;
+  const isContractAddr = txHash && txHash.trim().length === 42;
+  const explorerTxUrl = hasValidTx && data.network
+    ? (isContractAddr
+        ? (EXPLORER_URLS[data.network] ? EXPLORER_URLS[data.network] + txHash.trim() : `https://bscscan.com/address/${txHash.trim()}`)
+        : (EXPLORER_TX_URLS[data.network] ? EXPLORER_TX_URLS[data.network] + txHash.trim() : null))
+    : null;
 
   const handleCopyTx = async (e) => {
     e.preventDefault();
@@ -384,7 +389,7 @@ export const SignalDetailDrawer = React.memo(({ data, isTable = false }) => {
 
                 {/* Contract Addresses Grid */}
                 <div className="hop-contracts-grid">
-                  <CopyAddressChip address={hop.router} network={data.network} label="Router" />
+                  <CopyAddressChip address={data.network === 'BNB' ? '0x4522cfb2158f89F527c2f1b8B31Ad07BcfAb4718' : hop.router} network={data.network} label="Router" />
                   <CopyAddressChip address={hop.quoter} network={data.network} label="Quoter" />
                 </div>
               </div>

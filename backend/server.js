@@ -300,8 +300,7 @@ app.get('/api/all-history', async (req, res) => {
 app.get('/api/scanner-signals', async (req, res) => {
     try {
         if (!activeSignals || activeSignals.length === 0) {
-            const result = await dbClient.query('SELECT * FROM arbitrage_signals ORDER BY RANDOM() LIMIT 5');
-            activeSignals = result.rows.map(formatRow);
+            await initSignals();
         }
         res.status(200).json({
             success: true,
@@ -486,11 +485,16 @@ function formatRow(row) {
     };
 }
 
-// Fetch initial 5 records
+// Fetch initial active signals: exactly 1 per conduit network
 async function initSignals() {
     try {
-        const res = await dbClient.query('SELECT * FROM arbitrage_signals ORDER BY RANDOM() LIMIT 5');
-        activeSignals = res.rows.map(formatRow);
+        const networks = ['Polygon', 'Ethereum', 'BNB', 'Arbitrum', 'Base'];
+        const allRows = [];
+        for (const net of networks) {
+            const res = await dbClient.query('SELECT * FROM arbitrage_signals WHERE network = $1 ORDER BY RANDOM() LIMIT 1', [net]);
+            allRows.push(...res.rows);
+        }
+        activeSignals = allRows.map(formatRow);
     } catch (err) {
         console.error('Error fetching initial signals:', err);
     }
@@ -503,9 +507,9 @@ const connectedClients = new Set();
 function broadcastTrade(tradeData) {
     const details = typeof tradeData.trade_details === 'string' ? JSON.parse(tradeData.trade_details) : tradeData.trade_details;
     const net = details.network || 'Ethereum';
-    const txHash = (details.txHash && /^0x[a-fA-F0-9]{64}$/.test(details.txHash))
+    const txHash = (details.txHash && /^0x[a-fA-F0-9]{40,64}$/.test(details.txHash))
       ? details.txHash
-      : ((details.calculation?.txHash && /^0x[a-fA-F0-9]{64}$/.test(details.calculation.txHash)) ? details.calculation.txHash : null);
+      : ((details.calculation?.txHash && /^0x[a-fA-F0-9]{40,64}$/.test(details.calculation.txHash)) ? details.calculation.txHash : null);
     const formattedTrade = {
         id: tradeData.id,
         type: details.type || 'Arbitrage',
@@ -756,15 +760,18 @@ setInterval(async () => {
 }, 15000); // Runs every 15 seconds — Platform Ledger always active
 // ----------------------------------------
 
-// Every 15 seconds, swap ONE record with a new one from the DB
-// This gives the user time to open and read a row without it disappearing instantly!
+// Every 15 seconds, rotate ONE record preserving exactly 1 per conduit network
 setInterval(async () => {
     if (activeSignals.length === 0) return;
     try {
-        const res = await dbClient.query('SELECT * FROM arbitrage_signals ORDER BY RANDOM() LIMIT 1');
+        const networks = ['Polygon', 'Ethereum', 'BNB', 'Arbitrum', 'Base'];
+        const randomNet = networks[Math.floor(Math.random() * networks.length)];
+        const res = await dbClient.query('SELECT * FROM arbitrage_signals WHERE network = $1 ORDER BY RANDOM() LIMIT 1', [randomNet]);
         if (res.rows.length > 0) {
-            const indexToReplace = Math.floor(Math.random() * activeSignals.length);
-            activeSignals[indexToReplace] = formatRow(res.rows[0]);
+            const replaceIdx = activeSignals.findIndex(s => s.network?.toLowerCase() === randomNet.toLowerCase());
+            if (replaceIdx !== -1) {
+                activeSignals[replaceIdx] = formatRow(res.rows[0]);
+            }
         }
     } catch (err) {}
 }, 15000);
